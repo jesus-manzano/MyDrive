@@ -2,6 +2,7 @@ tokens/
 target/
 /.idea/
 /backend/src/main/resources/keys/
+/backend/src/main/resources/public/
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
