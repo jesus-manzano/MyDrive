@@ -1,5 +1,7 @@
 package com.mydrive.backend.services;
 
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.util.DateTime;
 import com.mydrive.backend.dtos.FileDTO;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
@@ -7,6 +9,7 @@ import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -31,6 +34,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.google.api.services.drive.model.File;
 
 import java.io.*;
+import java.time.*;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -76,29 +81,6 @@ public class GoogleDriveService {
         flow.createAndStoreCredential(response, USER_IDENTIFIER_KEY);
     }
 
-    private List<FileDTO> sortFiles(List<FileDTO> listFiles, String orderBy) {
-        switch (orderBy) {
-            case "name":
-                Comparator<FileDTO> nameComparator = Comparator.comparing(FileDTO::getName, String.CASE_INSENSITIVE_ORDER);
-                Collections.sort(listFiles, nameComparator);
-                break;
-            case "date":
-                Comparator<FileDTO> dateComparator = Comparator.comparing(FileDTO::getLastTimeViewed).reversed();
-                Collections.sort(listFiles, dateComparator);
-                break;
-            case "tam":
-                Comparator<FileDTO> tamComparator;
-                if (listFiles.get(0).getSize() == 0L) // Si son carpetas (sin tam asignado)
-                    tamComparator = Comparator.comparing(FileDTO::getName, String.CASE_INSENSITIVE_ORDER);
-                else tamComparator = Comparator.comparing(FileDTO::getSize).reversed(); // Si son archivos
-                Collections.sort(listFiles, tamComparator);
-                break;
-            default:
-                break;
-        }
-        return listFiles;
-    }
-
     public String getProfilePhoto() throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
         Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
@@ -107,51 +89,74 @@ public class GoogleDriveService {
         return about.getUser().getPhotoLink();
     }
 
-    public List<FileDTO> getFoldersInFolder(String folderId, String orderBy) throws Exception {
+    public List<FileDTO> getFoldersInFolder(String folderId, String folderName) throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
         Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
 
+        String query = "'" + folderId + "' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'";
+
+        // Agregar filtro por nombre de carpeta si se proporciona
+        if (!folderName.isEmpty()) {
+            query += " and name contains '" + folderName + "'";
+        }
         // Realizamos la consulta para obtener todas las carpetas en esta carpeta
-        FileList allFolders = drive.files().list().setQ("'" + folderId + "' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'").setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFolders = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
 
         List<FileDTO> foldersDTOList = new ArrayList<>();
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File folder : allFolders.getFiles()) {
-            folder.setThumbnailLink("/img/folder.png");
             folder.setSize(0L);
             foldersDTOList.add(new FileDTO(folder));
         }
 
-        // Ordenamos la lista según el criterio
-        foldersDTOList = sortFiles(foldersDTOList, orderBy);
-
         return foldersDTOList;
     }
 
-    public List<FileDTO> getFilesInFolder(String folderId, String orderBy) throws Exception {
+    public List<FileDTO> getFilesInFolder(String folderId, String fileName) throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
         Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
 
+        String query = "'" + folderId + "' in parents and trashed=false " + "and mimeType != 'application/vnd.google-apps.folder' " + "and mimeType != 'application/vnd.google-apps.shortcut'";
+
+        // Agregar filtro por nombre de archivo si se proporciona
+        if (!fileName.isEmpty()) {
+            query += " and name contains '" + fileName + "'";
+        }
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
-        FileList allFiles = drive.files().list().setQ("'" + folderId + "' in parents and trashed=false " + "and mimeType != 'application/vnd.google-apps.folder' " + "and mimeType != 'application/vnd.google-apps.shortcut'").setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFiles = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File file : allFiles.getFiles()) {
-            if (file.getThumbnailLink() == null) file.setThumbnailLink("/img/file.png");
             filesDTOList.add(new FileDTO(file));
         }
-
-        // Ordenamos la lista según el criterio
-        filesDTOList = sortFiles(filesDTOList, orderBy);
 
         return filesDTOList;
     }
 
-    public List<FileDTO> searchFiles(String fileName, String orderBy) throws Exception {
+    public List<FileDTO> searchFolders(String folderName) throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        // Realizamos la consulta para obtener todas las carpetas
+        // que coinciden con este nombre
+        FileList allFiles = drive.files().list().setQ("trashed=false and name contains '" + folderName + "'" + " and mimeType='application/vnd.google-apps.folder'").setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+
+        List<FileDTO> foldersDTOList = new ArrayList<>();
+
+        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
+        for (File folder : allFiles.getFiles()) {
+            folder.setSize(0L);
+            foldersDTOList.add(new FileDTO(folder));
+        }
+
+        return foldersDTOList;
+    }
+
+    public List<FileDTO> searchFiles(String fileName) throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
         Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
 
@@ -163,12 +168,8 @@ public class GoogleDriveService {
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File file : allFiles.getFiles()) {
-            if (file.getThumbnailLink() == null) file.setThumbnailLink("/img/file.png");
             filesDTOList.add(new FileDTO(file));
         }
-
-        // Ordenamos la lista según el criterio
-        filesDTOList = sortFiles(filesDTOList, orderBy);
 
         return filesDTOList;
     }
@@ -186,7 +187,7 @@ public class GoogleDriveService {
         return ResponseEntity.ok("Folder has been created successfully");
     }
 
-    public ResponseEntity<String> uploadFile(MultipartFile file) throws Exception {
+    public ResponseEntity<String> uploadFile(MultipartFile file, String folderId) throws Exception {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Archivo vacío");
         }
@@ -197,6 +198,7 @@ public class GoogleDriveService {
         // Crear el metadata del archivo
         File fileMetadata = new File();
         fileMetadata.setName(file.getOriginalFilename());
+        if (folderId != null) fileMetadata.setParents(Collections.singletonList(folderId));
 
         // Subir el archivo a Google Drive
         drive.files().create(fileMetadata, new InputStreamContent(file.getContentType(), new ByteArrayInputStream(file.getBytes()))).setFields("id").execute();
@@ -233,6 +235,54 @@ public class GoogleDriveService {
 
         // Archivo enviado a la papelera exitosamente
         return ResponseEntity.ok("Archivo enviado a la papelera exitosamente");
+    }
+
+    public List<FileDTO> getFoldersInBin(String folderName) throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        String query = "trashed=true and mimeType='application/vnd.google-apps.folder'";
+
+        // Agregar filtro por nombre de carpeta si se proporciona
+        if (!folderName.isEmpty()) {
+            query += " and name contains '" + folderName + "'";
+        }
+        // Realizamos la consulta para obtener todas las carpetas en esta carpeta
+        FileList allFolders = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+
+        List<FileDTO> foldersDTOList = new ArrayList<>();
+
+        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
+        for (File folder : allFolders.getFiles()) {
+            folder.setSize(0L);
+            foldersDTOList.add(new FileDTO(folder));
+        }
+
+        return foldersDTOList;
+    }
+
+    public List<FileDTO> getFilesInBin(String fileName) throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        String query = "trashed=true and mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.shortcut'";
+
+        // Agregar filtro por nombre de archivo si se proporciona
+        if (!fileName.isEmpty()) {
+            query += " and name contains '" + fileName + "'";
+        }
+        // Realizamos la consulta para obtener todos los archivos
+        // que no son ni carpetas ni enlaces a otros archivos
+        FileList allFiles = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+
+        List<FileDTO> filesDTOList = new ArrayList<>();
+
+        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
+        for (File file : allFiles.getFiles()) {
+            filesDTOList.add(new FileDTO(file));
+        }
+
+        return filesDTOList;
     }
 
     public List<FileDTO> getPathFolder(String folderId) throws Exception {
