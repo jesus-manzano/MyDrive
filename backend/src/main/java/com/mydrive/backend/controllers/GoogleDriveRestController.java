@@ -38,6 +38,16 @@ public class GoogleDriveRestController {
         return new ModelAndView(new RedirectView("/error"));
     }
 
+    @PostMapping("/createFolder/{folderId}")
+    public ResponseEntity<String> createFolder(@PathVariable String folderId, @RequestParam String name) throws Exception {
+        return googleDriveService.createFolder(folderId, name);
+    }
+
+    @PutMapping("/renameFile/{fileId}")
+    public ResponseEntity<String> renameFile(@PathVariable String fileId, @RequestParam String name) throws Exception {
+        return googleDriveService.renameFile(fileId, name);
+    }
+
     @PostMapping("/uploadFile/{folderId}")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file, @PathVariable String folderId) throws Exception {
         return googleDriveService.uploadFile(file, folderId);
@@ -48,9 +58,19 @@ public class GoogleDriveRestController {
         return googleDriveService.downloadFile(fileId);
     }
 
-    @DeleteMapping("/throwAway/{fileId}")
+    @PutMapping("/throwAway/{fileId}")
     public ResponseEntity<String> throwAwayFile(@PathVariable String fileId) throws Exception {
         return googleDriveService.throwAwayFile(fileId);
+    }
+
+    @PutMapping("/restore/{fileId}")
+    public ResponseEntity<String> restoreFile(@PathVariable String fileId) throws Exception {
+        return googleDriveService.restoreFile(fileId);
+    }
+
+    @DeleteMapping("/delete/{fileId}")
+    public ResponseEntity<String> deleteFile(@PathVariable String fileId) throws Exception {
+        return googleDriveService.deleteFile(fileId);
     }
 
     @GetMapping("/folders/{folderId}")

@@ -48,7 +48,8 @@ export default {
   },
   methods: {
     getFolderPath() {
-      if (this.currentFolderId) {
+      this.currentFolderPath = [];
+      if (this.$route.name === 'filemanager') {
         axios.get(`/api/google-drive/path/` + this.currentFolderId)
             .then(response => {
               this.currentFolderPath = response.data;

@@ -174,17 +174,30 @@ public class GoogleDriveService {
         return filesDTOList;
     }
 
-    public ResponseEntity<String> createFolder(String folderName) throws Exception {
+    public ResponseEntity<String> createFolder(String folderId, String folderName) throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        File folder = new File();
+        folder.setName(folderName);
+        folder.setMimeType("application/vnd.google-apps.folder");
+        folder.setParents(Collections.singletonList(folderId));
+
+        drive.files().create(folder).execute();
+
+        return ResponseEntity.ok("Folder has been created successfully");
+    }
+
+    public ResponseEntity<String> renameFile(String fileId, String newName) throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
         Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
 
         File file = new File();
-        file.setName(folderName);
-        file.setMimeType("application/vnd.google-apps.folder");
+        file.setName(newName);
 
-        drive.files().create(file).execute();
+        drive.files().update(fileId, file).execute();
 
-        return ResponseEntity.ok("Folder has been created successfully");
+        return ResponseEntity.ok("File has been renamed successfully");
     }
 
     public ResponseEntity<String> uploadFile(MultipartFile file, String folderId) throws Exception {
@@ -235,6 +248,34 @@ public class GoogleDriveService {
 
         // Archivo enviado a la papelera exitosamente
         return ResponseEntity.ok("Archivo enviado a la papelera exitosamente");
+    }
+
+    public ResponseEntity<String> restoreFile(String fileId) throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
+                .setApplicationName("googledrivespringbootexample")
+                .build();
+
+        // Obtener el archivo para modificarlo y restaurarlo de la papelera
+        File file = new File();
+        file.setTrashed(false);
+
+        // Enviar solicitud para actualizar el archivo y restaurarlo de la papelera
+        drive.files().update(fileId, file).execute();
+
+        // Archivo restaurado exitosamente
+        return ResponseEntity.ok("Archivo restaurado exitosamente");
+    }
+
+    public ResponseEntity<String> deleteFile(String fileId) throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        // Enviar solicitud para eliminar el archivo
+        drive.files().delete(fileId).execute();
+
+        // Archivo eliminado exitosamente
+        return ResponseEntity.ok("Archivo eliminado exitosamente");
     }
 
     public List<FileDTO> getFoldersInBin(String folderName) throws Exception {

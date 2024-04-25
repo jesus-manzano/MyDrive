@@ -43,9 +43,18 @@
         </router-link>
       </li>
     </ul>
-    <div>
-      <input type="file" id="fileInput" style="display: none;">
-      <button class="btn btn-warning" id="simpleUpload" @click="openUploadFileOverlay">
+    <div v-if="$route.name === 'filemanager'">
+      <button class="btn btn-warning" @click="openCreateFolderOverlay">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder-plus"
+             viewBox="0 0 16 16">
+          <path
+              d="m.5 3 .04.87a2 2 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14H9v-1H2.826a1 1 0 0 1-.995-.91l-.637-7A1 1 0 0 1 2.19 4h11.62a1 1 0 0 1 .996 1.09L14.54 8h1.005l.256-2.819A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2m5.672-1a1 1 0 0 1 .707.293L7.586 3H2.19q-.362.002-.683.12L1.5 2.98a1 1 0 0 1 1-.98z"/>
+          <path
+              d="M13.5 9a.5.5 0 0 1 .5.5V11h1.5a.5.5 0 1 1 0 1H14v1.5a.5.5 0 1 1-1 0V12h-1.5a.5.5 0 0 1 0-1H13V9.5a.5.5 0 0 1 .5-.5"/>
+        </svg>
+        Crear carpeta
+      </button>
+      <button class="btn btn-warning mt-2" @click="openUploadFileOverlay">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
              class="bi bi-cloud-upload" viewBox="0 0 16 16">
           <path fill-rule="evenodd"
@@ -53,7 +62,7 @@
           <path fill-rule="evenodd"
                 d="M7.646 4.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 5.707V14.5a.5.5 0 0 1-1 0V5.707L5.354 7.854a.5.5 0 1 1-.708-.708z"/>
         </svg>
-        Upload file
+        Subir archivos
       </button>
     </div>
     <hr>
@@ -76,9 +85,25 @@
     </div>
   </div>
 
+  <!-- Overlay para crear una carpeta nueva -->
+  <div v-show="showCreateFolderOverlay" class="overlay-area">
+    <div class="popup-area">
+      <h2 class="mb-3">Nueva carpeta</h2>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="bold me-3">Nombre:</div>
+        <input type="text" class="form-control" placeholder="Introduce nombre..." v-model="folderName"
+               @keyup.enter="createFolder">
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-danger" @click="closeCreateFolderOverlay" id="closeBtn-search-setting">Cancelar</button>
+        <button class="btn btn-success" @click="createFolder" id="closeBtn-search-setting">Crear</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Overlay para subir archivos -->
-  <div v-show="showUploadFileOverlay" id="overlay-upload-file">
-    <div id="popup-upload-file">
+  <div v-show="showUploadFileOverlay" class="overlay-area">
+    <div class="popup-area">
       <h2 class="mb-4">Subir archivos</h2>
 
       <!-- Área para arrastrar y soltar para subir los archivos -->
@@ -135,11 +160,13 @@ export default {
   data() {
     return {
       selectedFiles: [],
+      folderName: '',
       profilePhotoUrl: null,
       showUploadFileOverlay: false,
+      showCreateFolderOverlay: false,
       isDraggingUploadFile: false,
       uploading: false,
-      uploadProgress: 0
+      uploadProgress: 0,
     };
   },
   props: {
@@ -231,6 +258,31 @@ export default {
         });
       }
     },
+    // Método para crear nueva carpeta
+    createFolder() {
+      // Enviar una solicitud al backend para crear una nueva carpeta
+      axios.post(`/api/google-drive/createFolder/` + this.currentFolderId + '?name=' + this.folderName)
+          .then(response => {
+            // Procesar la respuesta del backend, por ejemplo, mostrar un mensaje de éxito
+            console.log('Carpeta creada exitosamente:', response.data);
+            // Cerrar el overlay después de crear la carpeta
+            this.closeCreateFolderOverlay();
+            window.location.reload();
+          })
+          .catch(error => {
+            // Manejar errores, por ejemplo, mostrar un mensaje de error
+            console.error('Error al crear la carpeta:', error);
+          });
+    },
+    // Método para abrir el overlay para crear una carpeta
+    openCreateFolderOverlay() {
+      this.showCreateFolderOverlay = true;
+    },
+    // Método para cerrar el overlay para crear una carpeta
+    closeCreateFolderOverlay() {
+      this.folderName = '';
+      this.showCreateFolderOverlay = false;
+    },
     // Método para abrir el overlay para subir un archivo
     openUploadFileOverlay() {
       this.showUploadFileOverlay = true;
@@ -260,29 +312,6 @@ export default {
 
 .sidebar-link:hover {
   background-color: rgb(190, 190, 190);
-}
-
-#overlay-upload-file {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: rgba(0, 0, 0, 0.5);
-  z-index: 1000;
-}
-
-#popup-upload-file {
-  display: flex;
-  flex-direction: column;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background-color: white;
-  padding: 20px;
-  border-radius: 10px;
-  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.5);
 }
 
 #closeBtn-search-setting {
