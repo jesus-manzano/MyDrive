@@ -2,7 +2,7 @@ import {createStore} from 'vuex'
 
 export default createStore({
     state: {
-        searchInFolder: true,
+        searchInFolder: false,
         hasFolders: true,
         hasFiles: true
     },

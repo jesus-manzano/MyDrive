@@ -75,8 +75,8 @@
       <div class="search-option mb-3 d-flex flex-row justify-content-between align-items-center">
         <div class="bold me-3">Ubicación:</div>
         <select class="form-select" aria-label="Default select example" v-model="searchInFolder">
-          <option :value="true">En la propia carpeta</option>
           <option :value="false">Cualquiera</option>
+          <option :value="true">En la propia carpeta</option>
         </select>
       </div>
       <button class="btn btn-danger" @click="closeSearchSettingOverlay" id="closeBtn-search-setting">Cerrar</button>
