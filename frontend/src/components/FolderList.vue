@@ -153,20 +153,22 @@ export default {
     // y dependiendo de la configuración del cliente
     getEndpoint() {
       let searching = (this.$route.query.q || '') != ''; // Si tiene algún valor q considera que se está buscando
-      let endpoint;
+      let endpoint = '';
 
-      if (searching && !this.$store.state.searchInFolder) { // Si está buscando de forma global
-        endpoint = '/api/google-drive/searchFolder/' + this.searchText;
-      } else endpoint = '/api/google-drive/folders/' + this.currentFolderId + '?q=' + this.searchText;
+      if (this.$route.name === 'filemanager') {
+        if (searching && !this.$store.state.searchInFolder) { // Si está buscando de forma global
+          endpoint = '/api/google-drive/searchFolder/' + this.searchText;
+        } else endpoint = '/api/google-drive/folders/' + this.currentFolderId + '?q=' + this.searchText;
+      }
 
       return endpoint;
     },
     // Método para obtener las carpetas
     getFolders() {
       this.folders = []; // Limpiamos las carpetas actuales
-      if (this.$route.name != 'bin') { // Si no estamos en la papelera
-        const endpoint = this.getEndpoint();
+      const endpoint = this.getEndpoint();
 
+      if (endpoint != '') {
         axios.get(endpoint)
             .then(response => {
               this.folders = response.data;

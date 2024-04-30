@@ -14,6 +14,11 @@ const routes = [
     component: FileManagerView,
   },
   {
+    path: '/filemanager/recent',
+    name: 'recent',
+    component: FileManagerView,
+  },
+  {
     path: '/filemanager/bin',
     name: 'bin',
     component: FileManagerView,

@@ -155,6 +155,10 @@ export default {
       type: String,
       default: 'name'
     },
+    period: {
+      type: String,
+      default: 'week'
+    },
   },
   watch: {
     currentFolderId() {
@@ -166,10 +170,16 @@ export default {
     orderBy() {
       this.sortFiles();
     },
+    period() {
+      this.getFiles();
+    },
     '$store.state.searchInFolder'(newValue, oldValue) {
       if (newValue !== oldValue) {
         this.getFiles();
       }
+    },
+    '$route.name'() {
+      this.getFiles();
     }
   },
   mounted() {
@@ -180,14 +190,20 @@ export default {
     // y dependiendo de la configuración del cliente
     getEndpoint() {
       let searching = (this.$route.query.q || '') != ''; // Si tiene algún valor q considera que se está buscando
-      let endpoint;
+      let endpoint = '';
 
-      if (this.$route.name != 'bin') { // Si no estamos en la papelera
-        endpoint = '/api/google-drive/files/' + this.currentFolderId + '?q=' + this.searchText;
-      } else endpoint = `/api/google-drive/files/bin?q=` + this.searchText;
-
-      if (searching && !this.$store.state.searchInFolder) { // Si está buscando de forma global
-        endpoint = '/api/google-drive/searchFile/' + this.searchText;
+      // Dependiendo de la vista en la que nos encontremos
+      switch (this.$route.name) {
+        case 'filemanager':
+          if (searching && !this.$store.state.searchInFolder) { // Si está buscando de forma global
+            endpoint = '/api/google-drive/searchFile/' + this.searchText;
+          } else endpoint = '/api/google-drive/files/' + this.currentFolderId + '?q=' + this.searchText;
+          break;
+        case 'recent':
+          endpoint = '/api/google-drive/allFiles';
+          break;
+        case 'bin':
+          endpoint = `/api/google-drive/files/bin?q=` + this.searchText;
       }
 
       return endpoint;
@@ -197,15 +213,22 @@ export default {
       this.files = []; // Limpiamos los archivos actuales
       const endpoint = this.getEndpoint();
 
-      axios.get(endpoint)
-          .then(response => {
-            this.files = response.data;
-            this.sortFiles();
-            this.setHasFiles(this.files.length > 0);
-          })
-          .catch(error => {
-            console.error('Error fetching files:', error);
-          });
+      if (endpoint != '') {
+        axios.get(endpoint)
+            .then(response => {
+              let filteredFiles = response.data; // Guardar los datos originales
+
+              if (this.$route.name === 'recent') // Si estamos en la pestaña recientes mostramos la última semana
+                filteredFiles = this.filterFilesByLastWeek(response.data); // Filtrar los archivos
+
+              this.files = filteredFiles;
+              this.sortFiles();
+              this.setHasFiles(this.files.length > 0);
+            })
+            .catch(error => {
+              console.error('Error fetching files:', error);
+            });
+      }
     },
     // Método para abrir un archivo en el navegador sin descargar
     openFile(fileId, event) {
@@ -325,6 +348,34 @@ export default {
       } else if (this.orderBy === 'tam') {
         this.files.sort((a, b) => b.size - a.size);
       }
+    },
+    // Método para filtrar los archivos
+    filterFilesByLastWeek(files) {
+      const oneWeekAgo = new Date();
+      const adjustedOneWeekAgo = new Date(oneWeekAgo.toISOString());
+
+      switch (this.period) {
+        case 'day':
+          adjustedOneWeekAgo.setDate(adjustedOneWeekAgo.getDate() - 1); // Restar 1 día
+          break;
+        case 'week':
+          adjustedOneWeekAgo.setDate(adjustedOneWeekAgo.getDate() - 7); // Restar 7 días (1 semana)
+          break;
+        case 'month':
+          adjustedOneWeekAgo.setMonth(adjustedOneWeekAgo.getMonth() - 1); // Restar 1 mes
+          break;
+        case 'year':
+          adjustedOneWeekAgo.setFullYear(adjustedOneWeekAgo.getFullYear() - 1); // Restar 1 año
+          break;
+        default:
+          adjustedOneWeekAgo.setDate(adjustedOneWeekAgo.getDate() - 7); // Por defecto, restar 7 días (1 semana)
+          break;
+      }
+
+      return files.filter(file => {
+        const fileLastViewed = new Date(file.lastTimeViewed);
+        return fileLastViewed >= adjustedOneWeekAgo; // Filtrar los archivos que son más recientes
+      });
     },
     // Método para abrir el overlay para renombrar un archivo e indicar cuál vamos a modificar
     openRenameFileOverlay(file) {

@@ -137,6 +137,26 @@ public class GoogleDriveService {
         return filesDTOList;
     }
 
+    public List<FileDTO> getAllFiles() throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        String query = "trashed=false " + "and mimeType != 'application/vnd.google-apps.folder' " + "and mimeType != 'application/vnd.google-apps.shortcut'";
+
+        // Realizamos la consulta para obtener todos los archivos
+        // que no son ni carpetas ni enlaces a otros archivos
+        FileList allFiles = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+
+        List<FileDTO> filesDTOList = new ArrayList<>();
+
+        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
+        for (File file : allFiles.getFiles()) {
+            filesDTOList.add(new FileDTO(file));
+        }
+
+        return filesDTOList;
+    }
+
     public List<FileDTO> searchFolders(String folderName) throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
         Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();

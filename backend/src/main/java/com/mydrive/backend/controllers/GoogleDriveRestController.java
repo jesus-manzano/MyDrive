@@ -87,6 +87,12 @@ public class GoogleDriveRestController {
         return ResponseEntity.ok(files);
     }
 
+    @GetMapping("/allFiles")
+    public ResponseEntity<List<FileDTO>> getAllFiles() throws Exception {
+        List<FileDTO> files = googleDriveService.getAllFiles();
+        return ResponseEntity.ok(files);
+    }
+
     @GetMapping(value = {"/searchFolder/{folderName}"})
     public ResponseEntity<List<FileDTO>> searchFolders(@PathVariable String folderName) throws Exception {
         List<FileDTO> folders = googleDriveService.searchFolders(folderName);

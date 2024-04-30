@@ -19,7 +19,9 @@
         </router-link>
       </li>
       <li>
-        <a href="#" class="nav-link sidebar-link link-dark d-flex align-items-center fs-5 p-2 my-1">
+        <router-link :to="`/filemanager/recent`"
+                     class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
+                     :class="{'link-dark': $route.name !== 'recent'}">
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor"
                class="bi bi-clock-history mx-2" viewBox="0 0 16 16">
             <path
@@ -29,7 +31,7 @@
                 d="M7.5 3a.5.5 0 0 1 .5.5v5.21l3.248 1.856a.5.5 0 0 1-.496.868l-3.5-2A.5.5 0 0 1 7 9V3.5a.5.5 0 0 1 .5-.5"/>
           </svg>
           Recientes
-        </a>
+        </router-link>
       </li>
       <li>
         <router-link :to="`/filemanager/bin`" class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
