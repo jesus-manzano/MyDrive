@@ -1,7 +1,6 @@
 package com.mydrive.backend.services;
 
-import com.google.api.client.http.GenericUrl;
-import com.google.api.client.util.DateTime;
+import com.google.api.services.drive.DriveRequest;
 import com.mydrive.backend.dtos.FileDTO;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
@@ -9,7 +8,6 @@ import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -34,11 +32,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.google.api.services.drive.model.File;
 
 import java.io.*;
-import java.time.*;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 
 @Service
@@ -206,6 +201,36 @@ public class GoogleDriveService {
         drive.files().create(folder).execute();
 
         return ResponseEntity.ok("Folder has been created successfully");
+    }
+
+    public ResponseEntity<String> moveFile(String fileId, String targetFolderId) throws Exception {
+        // Cargar las credenciales y crear el cliente de Google Drive
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
+                .setApplicationName("googledrivespringbootexample")
+                .build();
+
+        // Obtener la información del archivo para obtener el padre actual
+        File file = drive.files().get(fileId)
+                .setFields("parents")
+                .execute();
+
+        // Obtener los ID de los padres del archivo
+        List<String> parents = file.getParents();
+        if (parents == null || parents.isEmpty()) {
+            return ResponseEntity.badRequest().body("File has no parent folder");
+        }
+
+        // Suponemos que el archivo solo tiene un padre, tomamos el primer elemento de la lista
+        String sourceFolderId = parents.get(0);
+
+        // Ejecutar la solicitud de actualización para mover el archivo
+        drive.files().update(fileId, null)
+                .setRemoveParents(sourceFolderId)
+                .setAddParents(targetFolderId)
+                .execute();
+
+        return ResponseEntity.ok("File has been moved successfully");
     }
 
     public ResponseEntity<String> renameFile(String fileId, String newName) throws Exception {

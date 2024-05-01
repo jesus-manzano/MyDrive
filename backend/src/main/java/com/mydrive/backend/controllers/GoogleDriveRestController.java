@@ -43,6 +43,11 @@ public class GoogleDriveRestController {
         return googleDriveService.createFolder(folderId, name);
     }
 
+    @PutMapping("/moveFile/{fileId}")
+    public ResponseEntity<String> moveFile(@PathVariable String fileId, @RequestParam String folderId) throws Exception {
+        return googleDriveService.moveFile(fileId, folderId);
+    }
+
     @PutMapping("/renameFile/{fileId}")
     public ResponseEntity<String> renameFile(@PathVariable String fileId, @RequestParam String name) throws Exception {
         return googleDriveService.renameFile(fileId, name);

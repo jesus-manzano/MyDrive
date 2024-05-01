@@ -61,6 +61,17 @@
                   </svg>
                 </button>
                 <button class="btn btn-light mt-1 mb-2" style="width: 8rem;"
+                        @click.prevent.stop="openMoveFileOverlay(file)">
+                  Mover
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                       class="bi bi-folder-symlink" viewBox="0 0 16 16">
+                    <path
+                        d="m11.798 8.271-3.182 1.97c-.27.166-.616-.036-.616-.372V9.1s-2.571-.3-4 2.4c.571-4.8 3.143-4.8 4-4.8v-.769c0-.336.346-.538.616-.371l3.182 1.969c.27.166.27.576 0 .742"/>
+                    <path
+                        d="m.5 3 .04.87a2 2 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14h10.348a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2m.694 2.09A1 1 0 0 1 2.19 4h11.62a1 1 0 0 1 .996 1.09l-.636 7a1 1 0 0 1-.996.91H2.826a1 1 0 0 1-.995-.91zM6.172 2a1 1 0 0 1 .707.293L7.586 3H2.19q-.362.002-.683.12L1.5 2.98a1 1 0 0 1 1-.98z"/>
+                  </svg>
+                </button>
+                <button class="btn btn-light mt-1 mb-2" style="width: 8rem;"
                         @click.prevent.stop="openRenameFileOverlay(file)">
                   Renombrar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
@@ -126,6 +137,63 @@
       </div>
     </div>
   </div>
+
+  <!-- Overlay para mover un archivo -->
+  <div v-show="showMoveFileOverlay" class="overlay-area">
+    <div class="popup-area">
+      <h3 v-if="showMoveFileOverlay" class="mb-3">Mover archivo: "{{ fileSelected.name }}"</h3>
+      <div class="d-flex flex-row justify-content-between align-items-center">
+        <div class="d-flex flex-row align-items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder-fill"
+               viewBox="0 0 16 16">
+            <path
+                d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3m-8.322.12q.322-.119.684-.12h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981z"/>
+          </svg>
+          <div v-if="showMoveFileOverlay" class="ms-1 bold">
+            {{ this.fileMovePath[this.fileMovePath.length - 1].name }}
+          </div>
+        </div>
+        <div class="d-flex flex-row align-items-center" style="cursor: pointer;" @click="backFolder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="rgb(50, 50, 50, 0.9)"
+               class="bi bi-arrow-left-circle"
+               viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+                  d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z"/>
+          </svg>
+          <div class="m-0 h6 ms-1" style="color: rgb(50, 50, 50, 0.9);">Atrás</div>
+        </div>
+      </div>
+      <hr class="my-2">
+      <div class="d-flex flex-column mb-2" style="max-height: 296px; overflow-y: auto;">
+        <div v-if="folders.length === 0" class="text-secondary">No hay ninguna carpeta en la carpeta actual</div>
+        <div v-for="folder in folders" :key="folder.id"
+             class="d-flex justify-content-between align-items-center px-2 py-1 mb-1 me-2 move-file-row">
+          <div class="d-flex flex-row align-items-center me-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder-fill"
+                 viewBox="0 0 16 16">
+              <path
+                  d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3m-8.322.12q.322-.119.684-.12h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981z"/>
+            </svg>
+            <div class="ms-1 bold">{{ folder.name }}</div>
+          </div>
+          <div class="d-flex flex-row align-items-center">
+            <button class="btn btn-primary move-here me-2" @click="moveFile(folder.id)">Mover</button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                 class="bi bi-arrow-bar-right move-to" viewBox="0 0 16 16" @click="moveToFolder(folder)">
+              <path fill-rule="evenodd"
+                    d="M6 8a.5.5 0 0 0 .5.5h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L12.293 7.5H6.5A.5.5 0 0 0 6 8m-2.5 7a.5.5 0 0 1-.5-.5v-13a.5.5 0 0 1 1 0v13a.5.5 0 0 1-.5.5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-danger" @click="closeMoveFileOverlay">Cancelar</button>
+        <button class="btn btn-success" @click="moveFile(this.fileMovePath[this.fileMovePath.length - 1].id)">
+          Mover Aquí
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -139,7 +207,10 @@ export default {
       files: [],
       showRenameFileOverlay: false,
       fileName: '',
-      fileSelected: null
+      fileSelected: null,
+      showMoveFileOverlay: false,
+      folders: [],
+      fileMovePath: []
     };
   },
   props: {
@@ -219,7 +290,7 @@ export default {
               let filteredFiles = response.data; // Guardar los datos originales
 
               if (this.$route.name === 'recent') // Si estamos en la pestaña recientes mostramos la última semana
-                filteredFiles = this.filterFilesByLastWeek(response.data); // Filtrar los archivos
+                filteredFiles = this.filterFilesByPeriod(response.data); // Filtrar los archivos
 
               this.files = filteredFiles;
               this.sortFiles();
@@ -256,6 +327,25 @@ export default {
           .catch(error => {
             console.error('Error al descargar el archivo:', error);
           });
+    },
+    // Método para mover un archivo
+    moveFile(folderId) {
+      if (this.fileSelected) {
+        // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
+        axios.put(`/api/google-drive/moveFile/` + this.fileSelected.id + '?folderId=' + folderId)
+            .then(response => {
+              console.log('Archivo movido exitosamente:', response.data);
+              this.getFiles();
+
+              this.fileSelected = null;
+              this.fileMovePath = [];
+              this.showMoveFileOverlay = false;
+            })
+            .catch(error => {
+              // Manejar errores, por ejemplo, mostrar un mensaje de error
+              console.error('Error al renombrar el archivo:', error);
+            });
+      }
     },
     // Método para renombrar un archivo
     renameFile() {
@@ -350,32 +440,53 @@ export default {
       }
     },
     // Método para filtrar los archivos
-    filterFilesByLastWeek(files) {
-      const oneWeekAgo = new Date();
-      const adjustedOneWeekAgo = new Date(oneWeekAgo.toISOString());
+    filterFilesByPeriod(files) {
+      const maxDate = new Date();
+      const adjustedMaxDate = new Date(maxDate.toISOString());
 
       switch (this.period) {
         case 'day':
-          adjustedOneWeekAgo.setDate(adjustedOneWeekAgo.getDate() - 1); // Restar 1 día
+          adjustedMaxDate.setDate(adjustedMaxDate.getDate() - 1); // Restar 1 día
           break;
         case 'week':
-          adjustedOneWeekAgo.setDate(adjustedOneWeekAgo.getDate() - 7); // Restar 7 días (1 semana)
+          adjustedMaxDate.setDate(adjustedMaxDate.getDate() - 7); // Restar 7 días (1 semana)
           break;
         case 'month':
-          adjustedOneWeekAgo.setMonth(adjustedOneWeekAgo.getMonth() - 1); // Restar 1 mes
+          adjustedMaxDate.setMonth(adjustedMaxDate.getMonth() - 1); // Restar 1 mes
           break;
         case 'year':
-          adjustedOneWeekAgo.setFullYear(adjustedOneWeekAgo.getFullYear() - 1); // Restar 1 año
+          adjustedMaxDate.setFullYear(adjustedMaxDate.getFullYear() - 1); // Restar 1 año
           break;
         default:
-          adjustedOneWeekAgo.setDate(adjustedOneWeekAgo.getDate() - 7); // Por defecto, restar 7 días (1 semana)
+          adjustedMaxDate.setDate(adjustedMaxDate.getDate() - 7); // Por defecto, restar 7 días (1 semana)
           break;
       }
 
       return files.filter(file => {
         const fileLastViewed = new Date(file.lastTimeViewed);
-        return fileLastViewed >= adjustedOneWeekAgo; // Filtrar los archivos que son más recientes
+        return fileLastViewed >= adjustedMaxDate; // Filtrar los archivos que son más recientes
       });
+    },
+    // Método para obtener las carpetas dentro de una carpeta
+    getFoldersInFolder(folderId) {
+      axios.get('/api/google-drive/folders/' + folderId)
+          .then(response => {
+            this.folders = response.data;
+          })
+          .catch(error => {
+            console.error('Error fetching folders:', error);
+          });
+    },
+    // Método para volver atrás en la ruta para mover un archivo
+    backFolder() {
+      if (this.fileMovePath.length > 1)
+        this.fileMovePath.pop();
+      this.getFoldersInFolder(this.fileMovePath[this.fileMovePath.length - 1].id);
+    },
+    // Método para ir a la carpeta para mover un archivo
+    moveToFolder(folder) {
+      this.fileMovePath.push(folder);
+      this.getFoldersInFolder(this.fileMovePath[this.fileMovePath.length - 1].id);
     },
     // Método para abrir el overlay para renombrar un archivo e indicar cuál vamos a modificar
     openRenameFileOverlay(file) {
@@ -387,6 +498,20 @@ export default {
     closeRenameFileOverlay() {
       this.fileName = '';
       this.showRenameFileOverlay = false;
+    },
+    // Método para abrir el overlay para mover un archivo
+    openMoveFileOverlay(file) {
+      this.fileSelected = file;
+      this.getFoldersInFolder('root');
+      this.fileMovePath.push({id: 'root', name: 'Inicio'});
+      this.showMoveFileOverlay = true;
+      this.toggleCardStyle(file);
+    },
+    // Método para cerrar el overlay para mover un archivo
+    closeMoveFileOverlay() {
+      this.folders = [];
+      this.fileMovePath = [];
+      this.showMoveFileOverlay = false;
     },
     // Método para mostrar el overlay de opciones de un archivo
     toggleCardStyle(file) {
@@ -498,4 +623,22 @@ export default {
   border-radius: 4px;
 }
 
+.move-file-row {
+  border-radius: 20px;
+  background-color: rgb(50, 50, 50, 0.1);
+}
+
+.move-file-row:hover {
+  background-color: rgb(50, 50, 50, 0.2);
+}
+
+.move-here {
+  border: none;
+  border-radius: 20px;
+  font-family: 'Roboto', sans-serif
+}
+
+.move-to:hover {
+  fill: #4451FE;
+}
 </style>
