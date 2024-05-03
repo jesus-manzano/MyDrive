@@ -1,12 +1,29 @@
 <template>
   <div v-if="folders.length > 0">
-    <div class="display-6 mt-4 mb-4">Carpetas</div>
+    <div class="d-flex justify-content-between align-items-center">
+      <div class="display-6 mt-4 mb-4">Carpetas</div>
+    </div>
 
     <div class="d-flex flex-wrap justify-content-center text-center">
       <div v-for="(folder, index) in folders" :key="index" class="mx-4 mb-5" style="width: 11rem;">
-        <router-link :to="`/filemanager/${folder.id}`" class="folder-card text-decoration-none">
-          <div class="d-flex align-items-center" style="overflow: hidden;">
-            <img src="@/assets/folder.png" class="card-img-top" alt="Imagen">
+        <a class="folder-card text-decoration-none" @click.prevent.stop="handleClickFolder(folder)">
+          <div class="d-flex align-items-center position-relative" style="overflow: hidden;">
+            <img src="@/assets/folder.png" class="card-img-top" :class="{ 'folder-selected': folder.selected }"
+                 alt="Imagen">
+            <div class="circle-icon" @click.prevent.stop="toggleSelected(folder)">
+              <svg v-if="folder.selected" xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+                   class="bi bi-check2-circle" viewBox="0 0 16 16">
+                <path
+                    d="M2.5 8a5.5 5.5 0 0 1 8.25-4.764.5.5 0 0 0 .5-.866A6.5 6.5 0 1 0 14.5 8a.5.5 0 0 0-1 0 5.5 5.5 0 1 1-11 0"/>
+                <path
+                    d="M15.354 3.354a.5.5 0 0 0-.708-.708L8 9.293 5.354 6.646a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0z"/>
+              </svg>
+              <svg v-else xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                   class="bi bi-circle"
+                   viewBox="0 0 16 16">
+                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+              </svg>
+            </div>
           </div>
 
           <div class="card-body">
@@ -15,15 +32,15 @@
                    style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
                 {{ folder.name }}
               </div>
-              <div class="dropdown" @click.prevent="toggleDropdown(folder)">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="rgb(50, 50, 50, 0.6)"
+              <div class="dropdown" @click.prevent.stop>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                     fill="rgb(50, 50, 50, 0.6)"
                      class="bi bi-gear-fill dropdown-toggle folder-option" id="dropdownFolder" data-bs-toggle="dropdown"
                      viewBox="0 0 16 16">
                   <path
                       d="M9.405 1.05c-.413-1.4-2.397-1.4-2.81 0l-.1.34a1.464 1.464 0 0 1-2.105.872l-.31-.17c-1.283-.698-2.686.705-1.987 1.987l.169.311c.446.82.023 1.841-.872 2.105l-.34.1c-1.4.413-1.4 2.397 0 2.81l.34.1a1.464 1.464 0 0 1 .872 2.105l-.17.31c-.698 1.283.705 2.686 1.987 1.987l.311-.169a1.464 1.464 0 0 1 2.105.872l.1.34c.413 1.4 2.397 1.4 2.81 0l.1-.34a1.464 1.464 0 0 1 2.105-.872l.31.17c1.283.698 2.686-.705 1.987-1.987l-.169-.311a1.464 1.464 0 0 1 .872-2.105l.34-.1c1.4-.413 1.4-2.397 0-2.81l-.34-.1a1.464 1.464 0 0 1-.872-2.105l.17-.31c.698-1.283-.705-2.686-1.987-1.987l-.311.169a1.464 1.464 0 0 1-2.105-.872zM8 10.93a2.929 2.929 0 1 1 0-5.86 2.929 2.929 0 0 1 0 5.858z"/>
                 </svg>
-                <ul class="dropdown-menu text-small shadow" :class="{ 'dropdown-folder': folder.showOverlay }"
-                    aria-labelledby="dropdownFolder">
+                <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownFolder">
                   <li>
                     <router-link :to="`/filemanager/${folder.id}`" class="dropdown-item">
                       Abrir
@@ -73,7 +90,7 @@
             </div>
             <small class="text-muted p-1">{{ folder.lastTimeViewed }}</small>
           </div>
-        </router-link>
+        </a>
       </div>
     </div>
   </div>
@@ -186,7 +203,8 @@ export default {
       folderName: '',
       showMoveFolderOverlay: false,
       foldersMoveOption: [],
-      folderMovePath: []
+      folderMovePath: [],
+      numFolderInSelection: 0
     };
   },
   props: {
@@ -340,11 +358,17 @@ export default {
       this.folderMovePath.push(folder);
       this.getFoldersInFolder(this.folderMovePath[this.folderMovePath.length - 1].id);
     },
-    ...mapMutations(['setHasFolders']), // Establece a nivel global si hay carpetas
-    // Método para abrir o cerrar el menú de opciones de una carpeta
-    toggleDropdown(folder) {
-      folder.showDropdown = !folder.showDropdown;
+    // Método para ir a una carpeta
+    navigateToFolder(folder) {
+      this.$router.push(`/filemanager/${folder.id}`);
     },
+    // Método para manejar el click sobre una carpeta
+    handleClickFolder(folder) {
+      if (this.numFolderInSelection > 0) {
+        this.toggleSelected(folder);
+      } else this.navigateToFolder(folder);
+    },
+    ...mapMutations(['setHasFolders']), // Establece a nivel global si hay carpetas
     // Método para abrir el overlay para renombrar una carpeta e indicar la carpeta
     // que vamos a modificar
     openRenameFolderOverlay(folder) {
@@ -379,6 +403,11 @@ export default {
       this.folderMovePath = [];
       this.showMoveFolderOverlay = false;
     },
+    // Método para cambiar estado seleccionado de una carpeta
+    toggleSelected(folder) {
+      folder.selected = !folder.selected;
+      folder.selected ? this.numFolderInSelection++ : this.numFolderInSelection--;
+    }
   }
 }
 </script>
@@ -388,14 +417,25 @@ export default {
   margin-top: -5px !important;
 }
 
-.dropdown-folder {
+.folder-selected {
+  filter: saturate(40%);
+}
+
+.circle-icon {
+  display: none;
+  position: absolute;
+  top: 0;
+  right: 0;
+  margin-top: -5px !important;
+}
+
+.folder-card:hover .circle-icon {
   display: block;
 }
 
 .folder-option:hover {
   fill: rgb(50, 50, 50, 0.8);
 }
-
 
 .move-file-row {
   border-radius: 20px;

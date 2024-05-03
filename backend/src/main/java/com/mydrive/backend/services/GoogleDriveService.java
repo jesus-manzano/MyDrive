@@ -1,6 +1,5 @@
 package com.mydrive.backend.services;
 
-import com.google.api.services.drive.DriveRequest;
 import com.mydrive.backend.dtos.FileDTO;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
@@ -32,8 +31,10 @@ import org.springframework.web.multipart.MultipartFile;
 import com.google.api.services.drive.model.File;
 
 import java.io.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
 
 @Service
@@ -132,15 +133,33 @@ public class GoogleDriveService {
         return filesDTOList;
     }
 
-    public List<FileDTO> getAllFiles() throws Exception {
+    public List<FileDTO> getRecentFiles(String maxDate, String fileName) throws Exception {
         Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
+                .setApplicationName("googledrivespringbootexample")
+                .build();
 
-        String query = "trashed=false " + "and mimeType != 'application/vnd.google-apps.folder' " + "and mimeType != 'application/vnd.google-apps.shortcut'";
+        // Convertir la cadena de texto a un objeto Date
+        SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
+        Date parsedDate = formatter.parse(maxDate);
+        String formattedDate = formatter.format(parsedDate);
+
+        String query = "trashed=false "
+                + "and mimeType != 'application/vnd.google-apps.folder' "
+                + "and mimeType != 'application/vnd.google-apps.shortcut' "
+                + "and viewedByMeTime > '" + formattedDate + "'";
+
+        // Agregar filtro por nombre de archivo si se proporciona
+        if (!fileName.isEmpty()) {
+            query += " and name contains '" + fileName + "'";
+        }
 
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
-        FileList allFiles = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFiles = drive.files().list()
+                .setQ(query)
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
 

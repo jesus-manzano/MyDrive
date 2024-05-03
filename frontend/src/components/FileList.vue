@@ -14,14 +14,29 @@
 
     <div class="d-flex flex-wrap justify-content-center text-center">
       <div class="mx-4 mb-5 rounded-4" style="width: 11rem;" v-for="(file, index) in files" :key="file.id">
-        <a id="file-card" href="" class="card" :class="{ 'transform-card-selected': file.isSelected }"
-           @click.prevent="openFile(file.id, $event)">
+        <a id="file-card" href="" class="card" :class="{ 'transform-card-selected': file.selected }"
+           @click.prevent="handleClickFile(file, $event)">
           <img :src="file.thumbnailLink ? file.thumbnailLink : require('@/assets/file.png')"
-               class="card__image bg-light" alt="Imagen Archivo"/>
+               class="card__image bg-light" alt="Imagen" :class="{ 'saturate-img': file.selected }"/>
+          <div class="circle-icon ps-2 pb-2 pt-3 pe-3" @click.prevent.stop="toggleSelected(file)">
+            <svg v-if="file.selected" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+                 fill="rgba(var(--bs-primary-rgb)" class="bi bi-check2-circle" viewBox="0 0 16 16">
+              <path
+                  d="M2.5 8a5.5 5.5 0 0 1 8.25-4.764.5.5 0 0 0 .5-.866A6.5 6.5 0 1 0 14.5 8a.5.5 0 0 0-1 0 5.5 5.5 0 1 1-11 0"/>
+              <path
+                  d="M15.354 3.354a.5.5 0 0 0-.708-.708L8 9.293 5.354 6.646a.5.5 0 1 0-.708.708l3 3a.5.5 0 0 0 .708 0z"/>
+            </svg>
+            <svg v-else xmlns="http://www.w3.org/2000/svg" width="21" height="21" fill="rgba(var(--bs-primary-rgb)"
+                 class="bi bi-circle"
+                 viewBox="0 0 16 16">
+              <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+            </svg>
+          </div>
           <div class="card__overlay" :class="{ 'transform-card-up': file.showOverlay }"
                @click.prevent.stop="toggleCardStyle(file)">
             <div class="card__header" :class="{ 'transform-card-up': file.showOverlay }">
-              <svg class="card__arc" xmlns="http://www.w3.org/2000/svg">
+              <svg class="card__arc" xmlns="http://www.w3.org/2000/svg" @click.prevent.stop="toggleSelected(file)"
+                   @dblclick.prevent.stop="openFile(file, $event)">
                 <path/>
               </svg>
               <div class="card__header-text">
@@ -38,7 +53,7 @@
             </div>
             <div class="options-container" style="max-height: 140px; overflow-y: auto;">
               <button class="btn btn-light mb-1" style="width: 8rem;"
-                      @click.prevent="openFile(file.id, $event)">
+                      @click.prevent="openFile(file, $event)">
                 Abrir
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                      class="bi bi-box-arrow-right" viewBox="0 0 16 16">
@@ -210,7 +225,8 @@ export default {
       fileSelected: null,
       showMoveFileOverlay: false,
       folders: [],
-      fileMovePath: []
+      fileMovePath: [],
+      numFilesInSelection: 0
     };
   },
   props: {
@@ -271,7 +287,7 @@ export default {
           } else endpoint = '/api/google-drive/files/' + this.currentFolderId + '?q=' + this.searchText;
           break;
         case 'recent':
-          endpoint = '/api/google-drive/allFiles';
+          endpoint = `/api/google-drive/recentFiles?maxDate=` + this.getMaxDateByPeriod() + '&q=' + this.searchText;
           break;
         case 'bin':
           endpoint = `/api/google-drive/files/bin?q=` + this.searchText;
@@ -287,12 +303,8 @@ export default {
       if (endpoint != '') {
         axios.get(endpoint)
             .then(response => {
-              let filteredFiles = response.data; // Guardar los datos originales
+              this.files = response.data;
 
-              if (this.$route.name === 'recent') // Si estamos en la pestaña recientes mostramos la última semana
-                filteredFiles = this.filterFilesByPeriod(response.data); // Filtrar los archivos
-
-              this.files = filteredFiles;
               this.sortFiles();
               this.setHasFiles(this.files.length > 0);
             })
@@ -302,8 +314,10 @@ export default {
       }
     },
     // Método para abrir un archivo en el navegador sin descargar
-    openFile(fileId, event) {
-      const url = `https://drive.google.com/file/d/${fileId}/view`;
+    openFile(file, event) {
+      file.selected = false;
+      file.showOverlay = false;
+      const url = `https://drive.google.com/file/d/${file.id}/view`;
       // Si la tecla Control está presionada, abrir en una nueva pestaña
       if (event.ctrlKey || event.metaKey) {
         window.open(url, '_blank');
@@ -439,33 +453,25 @@ export default {
         this.files.sort((a, b) => b.size - a.size);
       }
     },
-    // Método para filtrar los archivos
-    filterFilesByPeriod(files) {
-      const maxDate = new Date();
-      const adjustedMaxDate = new Date(maxDate.toISOString());
+    // Método para establecer la fecha max. según el periodo establecido
+    getMaxDateByPeriod() {
+      let maxDate = new Date();
 
       switch (this.period) {
         case 'day':
-          adjustedMaxDate.setDate(adjustedMaxDate.getDate() - 1); // Restar 1 día
-          break;
-        case 'week':
-          adjustedMaxDate.setDate(adjustedMaxDate.getDate() - 7); // Restar 7 días (1 semana)
+          maxDate.setDate(maxDate.getDate() - 1); // Restar 1 día
           break;
         case 'month':
-          adjustedMaxDate.setMonth(adjustedMaxDate.getMonth() - 1); // Restar 1 mes
+          maxDate.setMonth(maxDate.getMonth() - 1); // Restar 1 mes
           break;
         case 'year':
-          adjustedMaxDate.setFullYear(adjustedMaxDate.getFullYear() - 1); // Restar 1 año
+          maxDate.setFullYear(maxDate.getFullYear() - 1); // Restar 1 año
           break;
         default:
-          adjustedMaxDate.setDate(adjustedMaxDate.getDate() - 7); // Por defecto, restar 7 días (1 semana)
+          maxDate.setDate(maxDate.getDate() - 7); // Por defecto, restar 7 días (1 semana)
           break;
       }
-
-      return files.filter(file => {
-        const fileLastViewed = new Date(file.lastTimeViewed);
-        return fileLastViewed >= adjustedMaxDate; // Filtrar los archivos que son más recientes
-      });
+      return maxDate.toISOString();
     },
     // Método para obtener las carpetas dentro de una carpeta
     getFoldersInFolder(folderId) {
@@ -516,7 +522,17 @@ export default {
     // Método para mostrar el overlay de opciones de un archivo
     toggleCardStyle(file) {
       file.showOverlay = !file.showOverlay;
-      file.isSelected = !file.isSelected;
+    },
+    // Método para manejar el click sobre un archivo
+    handleClickFile(file, event) {
+      if (this.numFilesInSelection > 0) {
+        this.toggleSelected(file);
+      } else this.openFile(file, event);
+    },
+    // Método para cambiar estado de seleccionado de un archivo
+    toggleSelected(file) {
+      file.selected = !file.selected;
+      file.selected ? this.numFilesInSelection++ : this.numFilesInSelection--;
     },
     ...mapMutations(['setHasFiles']) // Establece a nivel global si hay archivos
   }
@@ -548,6 +564,24 @@ export default {
 
 .card__image {
   width: 100%;
+}
+
+.saturate-img {
+  filter: saturate(50%);
+}
+
+.circle-icon {
+  display: none;
+  margin-top: -5px !important;
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-radius: 0 0 0 10px;
+  background-color: rgb(50, 50, 50, 0.5);
+}
+
+.card:hover .circle-icon {
+  display: block;
 }
 
 .card__overlay {

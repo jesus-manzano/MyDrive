@@ -92,9 +92,10 @@ public class GoogleDriveRestController {
         return ResponseEntity.ok(files);
     }
 
-    @GetMapping("/allFiles")
-    public ResponseEntity<List<FileDTO>> getAllFiles() throws Exception {
-        List<FileDTO> files = googleDriveService.getAllFiles();
+    @GetMapping("/recentFiles")
+    public ResponseEntity<List<FileDTO>> getRecentFiles(@RequestParam String maxDate,
+                                                        @RequestParam(required = false, defaultValue = "") String q) throws Exception {
+        List<FileDTO> files = googleDriveService.getRecentFiles(maxDate, q);
         return ResponseEntity.ok(files);
     }
 
