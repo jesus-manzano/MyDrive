@@ -13,7 +13,7 @@
 
           <!-- Dropdown de orden -->
           <div v-if="$route.name != 'recent'" class="dropdown ms-auto">
-            <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
+            <button class="btn btn-dark dropdown-toggle" type="button" id="dropdownMenuButton"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
               Ordenar por

@@ -2,14 +2,106 @@
   <div v-if="files.length > 0">
     <div class="d-flex justify-content-between  align-items-center mt-4 mb-4">
       <div class="display-6">Archivos</div>
-      <button v-if="$route.name === 'bin'" class="btn btn-danger" @click="deleteAllFiles">
-        Vaciar papelera
-        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-             class="bi bi-trash3 mx-1" viewBox="0 0 16 16">
-          <path
-              d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
-        </svg>
-      </button>
+      <div class="d-flex justify-content-end flex-column">
+        <button v-if="$route.name === 'bin'" class="btn btn-danger" @click="deleteAllFiles">
+          Vaciar papelera
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+               class="bi bi-trash3 mx-1" viewBox="0 0 16 16">
+            <path
+                d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+          </svg>
+        </button>
+        <!-- Dropdown de opciones varias carpetas -->
+        <div class="btn-group mt-2" v-if="selectionMode">
+          <button type="button" class="btn btn-primary d-flex align-items-center"
+                  @click="toggleSelectionMode">
+            Deseleccionar
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+                 class="bi bi-file-earmark-excel ms-1" viewBox="0 0 16 16">
+              <path
+                  d="M5.884 6.68a.5.5 0 1 0-.768.64L7.349 10l-2.233 2.68a.5.5 0 0 0 .768.64L8 10.781l2.116 2.54a.5.5 0 0 0 .768-.641L8.651 10l2.233-2.68a.5.5 0 0 0-.768-.64L8 9.219l-2.116-2.54z"/>
+              <path
+                  d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+            </svg>
+          </button>
+          <button class="btn btn-primary dropdown-toggle dropdown-toggle-split" type="button" id="dropdownMenuButton"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false">
+          </button>
+          <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownMenuButton">
+            <div v-if="$route.name === 'bin'">
+              <li>
+                <a class="dropdown-item" @click.prevent="restoreAllSelected">
+                  Restaurar
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                       class="bi bi-arrow-counterclockwise" viewBox="0 0 16 16">
+                    <path fill-rule="evenodd" d="M8 3a5 5 0 1 1-4.546 2.914.5.5 0 0 0-.908-.417A6 6 0 1 0 8 2z"/>
+                    <path
+                        d="M8 4.466V.534a.25.25 0 0 0-.41-.192L5.23 2.308a.25.25 0 0 0 0 .384l2.36 1.966A.25.25 0 0 0 8 4.466"/>
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" @click.prevent="deleteAllSelected">
+                  Eliminar
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                       class="bi bi-trash3" viewBox="0 0 16 16">
+                    <path
+                        d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                  </svg>
+                </a>
+              </li>
+            </div>
+            <div v-else>
+              <li>
+                <a class="dropdown-item" @click.prevent="downloadAllSelected">
+                  Descargar
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                       class="bi bi-download" viewBox="0 0 16 16">
+                    <path
+                        d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5"/>
+                    <path
+                        d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708z"/>
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" @click.prevent="openMoveSelectedOverlay">
+                  Mover
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                       class="bi bi-folder-symlink" viewBox="0 0 16 16">
+                    <path
+                        d="m11.798 8.271-3.182 1.97c-.27.166-.616-.036-.616-.372V9.1s-2.571-.3-4 2.4c.571-4.8 3.143-4.8 4-4.8v-.769c0-.336.346-.538.616-.371l3.182 1.969c.27.166.27.576 0 .742"/>
+                    <path
+                        d="m.5 3 .04.87a2 2 0 0 0-.342 1.311l.637 7A2 2 0 0 0 2.826 14h10.348a2 2 0 0 0 1.991-1.819l.637-7A2 2 0 0 0 13.81 3H9.828a2 2 0 0 1-1.414-.586l-.828-.828A2 2 0 0 0 6.172 1H2.5a2 2 0 0 0-2 2m.694 2.09A1 1 0 0 1 2.19 4h11.62a1 1 0 0 1 .996 1.09l-.636 7a1 1 0 0 1-.996.91H2.826a1 1 0 0 1-.995-.91zM6.172 2a1 1 0 0 1 .707.293L7.586 3H2.19q-.362.002-.683.12L1.5 2.98a1 1 0 0 1 1-.98z"/>
+                  </svg>
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" @click.prevent="throwAwayAllSelected">
+                  Papelera
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                       class="bi bi-trash3" viewBox="0 0 16 16">
+                    <path
+                        d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5"/>
+                  </svg>
+                </a>
+              </li>
+            </div>
+          </ul>
+        </div>
+        <button v-else type="button" class="btn btn-primary d-flex align-items-center mt-2 justify-content-center"
+                @click="toggleSelectionMode">
+          Seleccionar
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor"
+               class="bi bi-file-earmark-check ms-1" viewBox="0 0 16 16">
+            <path
+                d="M10.854 7.854a.5.5 0 0 0-.708-.708L7.5 9.793 6.354 8.646a.5.5 0 1 0-.708.708l1.5 1.5a.5.5 0 0 0 .708 0z"/>
+            <path
+                d="M14 14V4.5L9.5 0H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2M9.5 3A1.5 1.5 0 0 0 11 4.5h2V14a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1h5.5z"/>
+          </svg>
+        </button>
+      </div>
     </div>
 
     <div class="d-flex flex-wrap justify-content-center text-center">
@@ -18,7 +110,8 @@
            @click.prevent="handleClickFile(file, $event)">
           <img :src="file.thumbnailLink ? file.thumbnailLink : require('@/assets/file.png')"
                class="card__image bg-light" alt="Imagen" :class="{ 'saturate-img': file.selected }"/>
-          <div class="circle-icon ps-2 pb-2 pt-3 pe-3" @click.prevent.stop="toggleSelected(file)">
+          <div v-show="selectionMode" class="circle-icon ps-2 pb-2 pt-3 pe-3"
+               @click.prevent.stop="toggleSelected(file)">
             <svg v-if="file.selected" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
                  fill="rgba(var(--bs-primary-rgb)" class="bi bi-check2-circle" viewBox="0 0 16 16">
               <path
@@ -35,8 +128,8 @@
           <div class="card__overlay" :class="{ 'transform-card-up': file.showOverlay }"
                @click.prevent.stop="toggleCardStyle(file)">
             <div class="card__header" :class="{ 'transform-card-up': file.showOverlay }">
-              <svg class="card__arc" xmlns="http://www.w3.org/2000/svg" @click.prevent.stop="toggleSelected(file)"
-                   @dblclick.prevent.stop="openFile(file, $event)">
+              <svg class="card__arc" xmlns="http://www.w3.org/2000/svg"
+                   @click.prevent.stop="handleClickFile(file, $event)">
                 <path/>
               </svg>
               <div class="card__header-text">
@@ -209,6 +302,63 @@
       </div>
     </div>
   </div>
+
+  <!-- Overlay para mover los archivos seleccionados -->
+  <div v-show="showMoveSelectedOverlay" class="overlay-area">
+    <div class="popup-area">
+      <h3 v-if="showMoveSelectedOverlay" class="mb-3">Mover archivos seleccionados</h3>
+      <div class="d-flex flex-row justify-content-between align-items-center">
+        <div class="d-flex flex-row align-items-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder-fill"
+               viewBox="0 0 16 16">
+            <path
+                d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3m-8.322.12q.322-.119.684-.12h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981z"/>
+          </svg>
+          <div v-if="showMoveSelectedOverlay" class="ms-1 bold">
+            {{ this.fileMovePath[this.fileMovePath.length - 1].name }}
+          </div>
+        </div>
+        <div class="d-flex flex-row align-items-center" style="cursor: pointer;" @click="backFolder">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="rgb(50, 50, 50, 0.9)"
+               class="bi bi-arrow-left-circle"
+               viewBox="0 0 16 16">
+            <path fill-rule="evenodd"
+                  d="M1 8a7 7 0 1 0 14 0A7 7 0 0 0 1 8m15 0A8 8 0 1 1 0 8a8 8 0 0 1 16 0m-4.5-.5a.5.5 0 0 1 0 1H5.707l2.147 2.146a.5.5 0 0 1-.708.708l-3-3a.5.5 0 0 1 0-.708l3-3a.5.5 0 1 1 .708.708L5.707 7.5z"/>
+          </svg>
+          <div class="m-0 h6 ms-1" style="color: rgb(50, 50, 50, 0.9);">Atrás</div>
+        </div>
+      </div>
+      <hr class="my-2">
+      <div class="d-flex flex-column mb-2" style="max-height: 296px; overflow-y: auto;">
+        <div v-if="folders.length === 0" class="text-secondary">No hay ninguna carpeta en la carpeta actual</div>
+        <div v-for="folder in folders" :key="folder.id"
+             class="d-flex justify-content-between align-items-center px-2 py-1 mb-1 me-2 move-file-row">
+          <div class="d-flex flex-row align-items-center me-4">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder-fill"
+                 viewBox="0 0 16 16">
+              <path
+                  d="M9.828 3h3.982a2 2 0 0 1 1.992 2.181l-.637 7A2 2 0 0 1 13.174 14H2.825a2 2 0 0 1-1.991-1.819l-.637-7a2 2 0 0 1 .342-1.31L.5 3a2 2 0 0 1 2-2h3.672a2 2 0 0 1 1.414.586l.828.828A2 2 0 0 0 9.828 3m-8.322.12q.322-.119.684-.12h5.396l-.707-.707A1 1 0 0 0 6.172 2H2.5a1 1 0 0 0-1 .981z"/>
+            </svg>
+            <div class="ms-1 bold">{{ folder.name }}</div>
+          </div>
+          <div class="d-flex flex-row align-items-center">
+            <button class="btn btn-primary move-here me-2" @click="moveAllSelected(folder.id)">Mover</button>
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor"
+                 class="bi bi-arrow-bar-right move-to" viewBox="0 0 16 16" @click="moveToFolder(folder)">
+              <path fill-rule="evenodd"
+                    d="M6 8a.5.5 0 0 0 .5.5h5.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L12.293 7.5H6.5A.5.5 0 0 0 6 8m-2.5 7a.5.5 0 0 1-.5-.5v-13a.5.5 0 0 1 1 0v13a.5.5 0 0 1-.5.5"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-danger" @click="closeMoveSelectedOverlay">Cancelar</button>
+        <button class="btn btn-success" @click="moveAllSelected(this.fileMovePath[this.fileMovePath.length - 1].id)">
+          Mover Aquí
+        </button>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script>
@@ -226,7 +376,8 @@ export default {
       showMoveFileOverlay: false,
       folders: [],
       fileMovePath: [],
-      numFilesInSelection: 0
+      selectionMode: false,
+      showMoveSelectedOverlay: false
     };
   },
   props: {
@@ -298,6 +449,7 @@ export default {
     // Método para obtener todos los archivos que no son directorios
     getFiles() {
       this.files = []; // Limpiamos los archivos actuales
+      this.clearSelection(); // Ningún archivo seleccionado
       const endpoint = this.getEndpoint();
 
       if (endpoint != '') {
@@ -342,6 +494,15 @@ export default {
             console.error('Error al descargar el archivo:', error);
           });
     },
+    // Método para descargar todos los archivos seleccionados
+    downloadAllSelected() {
+      this.files.forEach(file => {
+        if (file.selected) {
+          this.downloadFile(file.id, file.name);
+        }
+      });
+      this.clearSelection();
+    },
     // Método para mover un archivo
     moveFile(folderId) {
       if (this.fileSelected) {
@@ -360,6 +521,33 @@ export default {
               console.error('Error al renombrar el archivo:', error);
             });
       }
+    },
+    //Método para mover todos los archivos seleccionados
+    moveAllSelected(targetFolderId) {
+      let completedRequests = 0;
+      const totalRequests = this.files.filter(file => file.selected).length;
+      this.files.forEach(file => {
+        if (file.selected) {
+          // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
+          axios.put(`/api/google-drive/moveFile/` + file.id + '?folderId=' + targetFolderId)
+              .then(response => {
+                console.log('Archivo movido exitosamente:', response.data);
+              })
+              .catch(error => {
+                // Manejar errores, por ejemplo, mostrar un mensaje de error
+                console.error('Error al renombrar el archivo:', error);
+              })
+              .finally(() => {
+                completedRequests++;
+
+                if (completedRequests === totalRequests) {
+                  this.getFiles();
+                  this.clearSelection();
+                  this.showMoveSelectedOverlay = false;
+                }
+              });
+        }
+      });
     },
     // Método para renombrar un archivo
     renameFile() {
@@ -398,6 +586,7 @@ export default {
     throwAwayFile(fileId, index) {
       axios.put(`/api/google-drive/throwAway/${fileId}`)
           .then(response => {
+            console.log("Indice: " + index);
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
             console.log('Archivo enviado a la papelera:', response.data);
@@ -405,6 +594,15 @@ export default {
           .catch(error => {
             console.error('Error al enviar el archivo a la papelera:', error);
           });
+    },
+    // Método para mover a la papelera todos los archivos seleccionados
+    throwAwayAllSelected() {
+      for (let i = this.files.length - 1; i >= 0; i--) {
+        if (this.files[i].selected) {
+          this.throwAwayFile(this.files[i].id, i);
+        }
+      }
+      this.clearSelection();
     },
     // Método para restaurar un archivo que estaba en la papelera
     restoreFile(fileId, index) {
@@ -418,6 +616,15 @@ export default {
             console.error('Error al restaurar el archivo', error);
           });
     },
+    // Método para restaurar todos los archivos seleccionados
+    restoreAllSelected() {
+      const selectedFiles = this.files.filter(file => file.selected);
+      selectedFiles.forEach(file => {
+        const index = this.files.findIndex(f => f.id === file.id);
+        this.restoreFile(file.id, index);
+      });
+      this.clearSelection();
+    },
     // Método para eliminar un archivo de forma permanente
     deleteFile(fileId, index) {
       axios.delete(`/api/google-drive/delete/${fileId}`)
@@ -429,6 +636,15 @@ export default {
           .catch(error => {
             console.error('Error al eliminar el archivo de forma definitiva:', error);
           });
+    },
+    // Método para eliminar todos los archivos seleccionados
+    deleteAllSelected() {
+      const selectedFiles = this.files.filter(file => file.selected);
+      selectedFiles.forEach(file => {
+        const index = this.files.findIndex(f => f.id === file.id);
+        this.deleteFile(file.id, index);
+      });
+      this.clearSelection();
     },
     // Método para eliminar todos los archivos de forma permanente
     deleteAllFiles() {
@@ -525,14 +741,37 @@ export default {
     },
     // Método para manejar el click sobre un archivo
     handleClickFile(file, event) {
-      if (this.numFilesInSelection > 0) {
+      if (this.selectionMode) {
         this.toggleSelected(file);
       } else this.openFile(file, event);
     },
     // Método para cambiar estado de seleccionado de un archivo
     toggleSelected(file) {
       file.selected = !file.selected;
-      file.selected ? this.numFilesInSelection++ : this.numFilesInSelection--;
+    },
+    // Método que elimina la selección de todas las carpetas
+    clearSelection() {
+      this.files.forEach(file => {
+        file.selected = false;
+      });
+      this.selectionMode = false;
+    },
+    // Método para activar o desactivar el modo de selección de archivos
+    toggleSelectionMode() {
+      this.selectionMode = !this.selectionMode;
+      if (!this.selectionMode) this.clearSelection();
+    },
+    // Método para abrir el overlay para mover los archivos seleccionados
+    openMoveSelectedOverlay() {
+      this.getFoldersInFolder('root');
+      this.fileMovePath.push({id: 'root', name: 'Inicio'});
+      this.showMoveSelectedOverlay = true;
+    },
+    // Método para cerrar el overlay para mover los archivos seleccionados
+    closeMoveSelectedOverlay() {
+      this.foldersMoveOption = [];
+      this.fileMovePath = [];
+      this.showMoveSelectedOverlay = false;
     },
     ...mapMutations(['setHasFiles']) // Establece a nivel global si hay archivos
   }
@@ -566,22 +805,18 @@ export default {
   width: 100%;
 }
 
-.saturate-img {
-  filter: saturate(50%);
-}
-
 .circle-icon {
-  display: none;
   margin-top: -5px !important;
   position: absolute;
   top: 0;
   right: 0;
   border-radius: 0 0 0 10px;
-  background-color: rgb(50, 50, 50, 0.5);
+  background-color: rgb(50, 50, 50, 0.4);
+  box-shadow: 0 4px 4px rgba(0, 0, 0, 0.1);
 }
 
-.card:hover .circle-icon {
-  display: block;
+.saturate-img {
+  filter: saturate(50%);
 }
 
 .card__overlay {
