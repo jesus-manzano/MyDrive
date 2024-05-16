@@ -50,6 +50,13 @@
             <artifactId>google-api-services-drive</artifactId>
             <version>v3-rev20240327-2.0.0</version>
         </dependency>
+
+        <!-- Dropbox Java SDK -->
+        <dependency>
+            <groupId>com.dropbox.core</groupId>
+            <artifactId>dropbox-core-sdk</artifactId>
+            <version>7.0.0</version>
+        </dependency>
     </dependencies>
 
     <build>

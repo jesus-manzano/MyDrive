@@ -3,6 +3,7 @@ target/
 /.idea/
 /backend/src/main/resources/keys/
 /backend/src/main/resources/public/
+/backend/src/main/resources/application-secrets.properties
 !.mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/
