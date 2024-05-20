@@ -24,6 +24,7 @@
 
 <script>
 import axios from "axios";
+import {mapState} from "vuex";
 
 export default {
   name: "NavBarDir",
@@ -38,9 +39,15 @@ export default {
       required: true
     }
   },
+  computed: {
+    ...mapState(['cloudService']),
+  },
   watch: {
     currentFolderId() {
       this.getFolderPath(); // Si cambia de directorio obtiene la ruta de dicho directorio
+    },
+    cloudService() {
+      this.getFolderPath();
     }
   },
   mounted() {
@@ -50,7 +57,7 @@ export default {
     getFolderPath() {
       this.currentFolderPath = [];
       if (this.$route.name === 'filemanager') {
-        axios.get(`/api/google-drive/path/` + this.currentFolderId)
+        axios.get(`/api/` + this.cloudService + `/path/` + this.currentFolderId)
             .then(response => {
               this.currentFolderPath = response.data;
               this.currentFolderPath.shift(); // Eliminamos el directorio raíz para que se muestre correctamente en el html

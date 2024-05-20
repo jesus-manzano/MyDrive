@@ -321,7 +321,7 @@
 
 <script>
 import axios from 'axios';
-import {mapMutations} from "vuex";
+import {mapMutations, mapState} from "vuex";
 
 export default {
   name: "FolderList",
@@ -354,6 +354,9 @@ export default {
       default: 'name'
     },
   },
+  computed: {
+    ...mapState(['cloudService']),
+  },
   watch: {
     currentFolderId() {
       this.getFolders();
@@ -369,6 +372,9 @@ export default {
         this.getFolders();
       }
     },
+    cloudService() {
+      this.getFolders();
+    }
   },
   mounted() {
     this.getFolders();
@@ -382,8 +388,8 @@ export default {
 
       if (this.$route.name === 'filemanager') {
         if (searching && !this.$store.state.searchInFolder) { // Si está buscando de forma global
-          endpoint = '/api/google-drive/searchFolder/' + this.searchText;
-        } else endpoint = '/api/google-drive/folders/' + this.currentFolderId + '?q=' + this.searchText;
+          endpoint = '/api/' + this.cloudService + '/searchFolder/' + this.searchText;
+        } else endpoint = '/api/' + this.cloudService + '/folders/' + this.currentFolderId + '?q=' + this.searchText;
       }
 
       return endpoint;
@@ -423,7 +429,7 @@ export default {
     moveFolder(folderId) {
       if (this.folderSelected) {
         // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
-        axios.put(`/api/google-drive/moveFile/` + this.folderSelected.id + '?folderId=' + folderId)
+        axios.put(`/api/` + this.cloudService + `/moveFile/` + this.folderSelected.id + '?folderId=' + folderId)
             .then(response => {
               console.log('Archivo movido exitosamente:', response.data);
               this.getFolders();
@@ -446,7 +452,7 @@ export default {
       this.folders.forEach(folder => {
         if (folder.selected) {
           // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
-          axios.put(`/api/google-drive/moveFile/` + folder.id + '?folderId=' + targetFolderId)
+          axios.put(`/api/` + this.cloudService + `/moveFile/` + folder.id + '?folderId=' + targetFolderId)
               .then(response => {
                 console.log('Archivo movido exitosamente:', response.data);
               })
@@ -470,7 +476,7 @@ export default {
     renameFolder() {
       if (this.folderSelected) {
         // Enviar una solicitud al backend para renombrar la carpeta
-        axios.put(`/api/google-drive/renameFile/` + this.folderSelected.id + '?name=' + this.folderName)
+        axios.put(`/api/` + this.cloudService + `/renameFile/` + this.folderSelected.id + '?name=' + this.folderName)
             .then(response => {
               this.folderSelected.name = this.folderName;
               console.log('Carpeta renombrada exitosamente:', response.data);
@@ -488,7 +494,7 @@ export default {
     },
     // Método para eliminar una carpeta y todos sus archivos de forma permanente
     deleteFolder(folderId, index) {
-      axios.delete(`/api/google-drive/delete/${folderId}`)
+      axios.delete(`/api/` + this.cloudService + `/delete/${folderId}`)
           .then(response => {
             this.folders.splice(index, 1);
             this.setHasFolders(this.folders.length > 0);
@@ -507,7 +513,7 @@ export default {
       this.folders.forEach(folder => {
         if (folder.selected) {
           // Enviar una solicitud al backend para eliminar la carpeta actual
-          axios.delete(`/api/google-drive/delete/${folder.id}`)
+          axios.delete(`/api/` + this.cloudService + `/delete/${folder.id}`)
               .then(response => {
                 console.log('Carpeta eliminada permanentemente:', response.data);
               })
@@ -527,7 +533,7 @@ export default {
     // Método para obtener las carpetas dentro de una carpeta
     // para la opción de mover una carpeta
     getFoldersInFolder(folderId) {
-      axios.get('/api/google-drive/folders/' + folderId)
+      axios.get('/api/' + this.cloudService + '/folders/' + folderId)
           .then(response => {
             this.foldersMoveOption = response.data;
           })

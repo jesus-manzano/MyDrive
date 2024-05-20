@@ -363,7 +363,7 @@
 
 <script>
 import axios from 'axios';
-import {mapMutations} from 'vuex';
+import {mapMutations, mapState} from 'vuex';
 
 export default {
   name: "FileList",
@@ -398,6 +398,9 @@ export default {
       default: 'week'
     },
   },
+  computed: {
+    ...mapState(['cloudService']),
+  },
   watch: {
     currentFolderId() {
       this.getFiles();
@@ -418,6 +421,9 @@ export default {
     },
     '$route.name'() {
       this.getFiles();
+    },
+    cloudService() {
+      this.getFiles();
     }
   },
   mounted() {
@@ -434,14 +440,14 @@ export default {
       switch (this.$route.name) {
         case 'filemanager':
           if (searching && !this.$store.state.searchInFolder) { // Si está buscando de forma global
-            endpoint = '/api/google-drive/searchFile/' + this.searchText;
-          } else endpoint = '/api/google-drive/files/' + this.currentFolderId + '?q=' + this.searchText;
+            endpoint = '/api/' + this.cloudService + '/searchFile/' + this.searchText;
+          } else endpoint = '/api/' + this.cloudService + '/files/' + this.currentFolderId + '?q=' + this.searchText;
           break;
         case 'recent':
-          endpoint = `/api/google-drive/recentFiles?maxDate=` + this.getMaxDateByPeriod() + '&q=' + this.searchText;
+          endpoint = `/api/` + this.cloudService + `/recentFiles?maxDate=` + this.getMaxDateByPeriod() + '&q=' + this.searchText;
           break;
         case 'bin':
-          endpoint = `/api/google-drive/files/bin?q=` + this.searchText;
+          endpoint = `/api/` + this.cloudService + `/files/bin?q=` + this.searchText;
       }
 
       return endpoint;
@@ -469,17 +475,28 @@ export default {
     openFile(file, event) {
       file.selected = false;
       file.showOverlay = false;
-      const url = `https://drive.google.com/file/d/${file.id}/view`;
-      // Si la tecla Control está presionada, abrir en una nueva pestaña
-      if (event.ctrlKey || event.metaKey) {
-        window.open(url, '_blank');
-      } else {
-        window.location.href = url;
-      }
+
+      // Llamar a tu backend para obtener el enlace de previsualización
+      axios.get(`/api/` + this.cloudService + `/preview-link/${file.id}`)
+          .then(response => {
+            const url = response.data;
+
+            console.log("URL: " + url);
+
+            // Si la tecla Control está presionada, abrir en una nueva pestaña
+            if (event.ctrlKey || event.metaKey) {
+              window.open(url, '_blank');
+            } else {
+              window.location.href = url;
+            }
+          })
+          .catch(error => {
+            console.error('Error obteniendo el enlace de previsualización:', error);
+          });
     },
     // Método para descargar un archivo
     downloadFile(fileId, fileName) {
-      axios.get(`/api/google-drive/download/${fileId}`, {
+      axios.get(`/api/` + this.cloudService + `/download/${fileId}`, {
         responseType: 'blob' // Indica que la respuesta será un blob (binario)
       })
           .then(response => {
@@ -507,7 +524,7 @@ export default {
     moveFile(folderId) {
       if (this.fileSelected) {
         // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
-        axios.put(`/api/google-drive/moveFile/` + this.fileSelected.id + '?folderId=' + folderId)
+        axios.put(`/api/` + this.cloudService + `/moveFile/` + this.fileSelected.id + '?folderId=' + folderId)
             .then(response => {
               console.log('Archivo movido exitosamente:', response.data);
               this.getFiles();
@@ -529,7 +546,7 @@ export default {
       this.files.forEach(file => {
         if (file.selected) {
           // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
-          axios.put(`/api/google-drive/moveFile/` + file.id + '?folderId=' + targetFolderId)
+          axios.put(`/api/` + this.cloudService + `/moveFile/` + file.id + '?folderId=' + targetFolderId)
               .then(response => {
                 console.log('Archivo movido exitosamente:', response.data);
               })
@@ -566,7 +583,7 @@ export default {
         newFileName += '.' + originalFileExtension;
 
         // Enviar una solicitud al backend para renombrar la carpeta
-        axios.put(`/api/google-drive/renameFile/` + this.fileSelected.id + '?name=' + newFileName)
+        axios.put(`/api/` + this.cloudService + `/renameFile/` + this.fileSelected.id + '?name=' + newFileName)
             .then(response => {
               this.fileSelected.name = newFileName;
               console.log('Archivo renombrado exitosamente:', response.data);
@@ -584,7 +601,7 @@ export default {
     },
     // Método para enviar un archivo a la papelera
     throwAwayFile(fileId, index) {
-      axios.put(`/api/google-drive/throwAway/${fileId}`)
+      axios.put(`/api/` + this.cloudService + `/throwAway/${fileId}`)
           .then(response => {
             console.log("Indice: " + index);
             this.files.splice(index, 1);
@@ -606,7 +623,7 @@ export default {
     },
     // Método para restaurar un archivo que estaba en la papelera
     restoreFile(fileId, index) {
-      axios.put(`/api/google-drive/restore/${fileId}`)
+      axios.put(`/api/` + this.cloudService + `/restore/${fileId}`)
           .then(response => {
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
@@ -627,7 +644,7 @@ export default {
     },
     // Método para eliminar un archivo de forma permanente
     deleteFile(fileId, index) {
-      axios.delete(`/api/google-drive/delete/${fileId}`)
+      axios.delete(`/api/` + this.cloudService + `/delete/${fileId}`)
           .then(response => {
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
@@ -661,8 +678,11 @@ export default {
         this.files.sort((a, b) => a.name.localeCompare(b.name));
       } else if (this.orderBy === 'date') {
         this.files.sort((a, b) => {
+          console.log(a.name + ": " + a.lastTimeViewed);
+          console.log(b.name + ": " + b.lastTimeViewed);
           const dateA = new Date(a.lastTimeViewed);
           const dateB = new Date(b.lastTimeViewed);
+          console.log("Resultado: " + (dateB - dateA));
           return dateB - dateA;
         });
       } else if (this.orderBy === 'tam') {
@@ -691,7 +711,7 @@ export default {
     },
     // Método para obtener las carpetas dentro de una carpeta
     getFoldersInFolder(folderId) {
-      axios.get('/api/google-drive/folders/' + folderId)
+      axios.get('/api/' + this.cloudService + '/folders/' + folderId)
           .then(response => {
             this.folders = response.data;
           })

@@ -1,5 +1,6 @@
 package com.mydrive.backend.services;
 
+import com.dropbox.core.v2.files.Metadata;
 import com.mydrive.backend.dtos.FileDTO;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
@@ -83,6 +84,14 @@ public class GoogleDriveService {
 
         About about = drive.about().get().setFields("user").execute();
         return about.getUser().getPhotoLink();
+    }
+
+    public String getUserName() throws Exception {
+        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
+        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+
+        About about = drive.about().get().setFields("user").execute();
+        return about.getUser().getDisplayName();
     }
 
     public List<FileDTO> getFoldersInFolder(String folderId, String folderName) throws Exception {
@@ -342,28 +351,10 @@ public class GoogleDriveService {
         return ResponseEntity.ok("Archivo eliminado exitosamente");
     }
 
-    public List<FileDTO> getFoldersInBin(String folderName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
+    public ResponseEntity<String> getPreviewLink(String fileId) throws Exception {
+        String previewUrl = "https://drive.google.com/file/d/" + fileId + "/view";
 
-        String query = "trashed=true and mimeType='application/vnd.google-apps.folder'";
-
-        // Agregar filtro por nombre de carpeta si se proporciona
-        if (!folderName.isEmpty()) {
-            query += " and name contains '" + folderName + "'";
-        }
-        // Realizamos la consulta para obtener todas las carpetas en esta carpeta
-        FileList allFolders = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
-
-        List<FileDTO> foldersDTOList = new ArrayList<>();
-
-        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
-        for (File folder : allFolders.getFiles()) {
-            folder.setSize(0L);
-            foldersDTOList.add(new FileDTO(folder));
-        }
-
-        return foldersDTOList;
+        return ResponseEntity.ok(previewUrl);
     }
 
     public List<FileDTO> getFilesInBin(String fileName) throws Exception {

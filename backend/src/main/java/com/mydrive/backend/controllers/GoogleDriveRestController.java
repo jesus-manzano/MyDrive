@@ -78,6 +78,11 @@ public class GoogleDriveRestController {
         return googleDriveService.deleteFile(fileId);
     }
 
+    @GetMapping("/preview-link/{fileId}")
+    public ResponseEntity<String> getPreviewUrl(@PathVariable String fileId) throws Exception {
+        return googleDriveService.getPreviewLink(fileId);
+    }
+
     @GetMapping("/folders/{folderId}")
     public ResponseEntity<List<FileDTO>> getFoldersInFolder(@PathVariable String folderId,
                                                             @RequestParam(required = false, defaultValue = "") String q) throws Exception {
@@ -111,14 +116,8 @@ public class GoogleDriveRestController {
         return ResponseEntity.ok(files);
     }
 
-    @GetMapping("/folders/bin")
-    public ResponseEntity<List<FileDTO>> getFoldersInFolder(@RequestParam(required = false, defaultValue = "") String q) throws Exception {
-        List<FileDTO> folders = googleDriveService.getFoldersInBin(q);
-        return ResponseEntity.ok(folders);
-    }
-
     @GetMapping("/files/bin")
-    public ResponseEntity<List<FileDTO>> getFilesInFolder(@RequestParam(required = false, defaultValue = "") String q) throws Exception {
+    public ResponseEntity<List<FileDTO>> getFilesInBin(@RequestParam(required = false, defaultValue = "") String q) throws Exception {
         List<FileDTO> files = googleDriveService.getFilesInBin(q);
         return ResponseEntity.ok(files);
     }
@@ -133,5 +132,11 @@ public class GoogleDriveRestController {
     public ResponseEntity<String> getProfilePhoto() throws Exception {
         String profilePhotoUrl = googleDriveService.getProfilePhoto();
         return ResponseEntity.ok(profilePhotoUrl);
+    }
+
+    @GetMapping("/userName")
+    public ResponseEntity<String> getUserName() throws Exception {
+        String userName = googleDriveService.getUserName();
+        return ResponseEntity.ok(userName);
     }
 }

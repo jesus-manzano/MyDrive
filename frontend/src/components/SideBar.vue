@@ -6,7 +6,7 @@
       <span class="fs-4">Accesos Rápidos</span>
     </router-link>
     <hr>
-    <ul class="nav nav-pills flex-column mb-auto">
+    <ul class="nav nav-pills flex-column">
       <li class="nav-item">
         <router-link :to="`/filemanager/root`" class="nav-link sidebar-link bg-d-flex align-items-center fs-5 p-2 my-1"
                      :class="{'link-dark': !$route.params.folderId}">
@@ -45,6 +45,32 @@
         </router-link>
       </li>
     </ul>
+
+    <!-- Selección de la nube actual para trabajar -->
+    <hr>
+    <span class="text-center fs-4">Nubes disponibles</span>
+    <hr>
+    <div class="mb-auto" style="max-height: 108px; overflow-y: auto;">
+      <ul class="nav nav-pills flex-column">
+        <li>
+          <router-link :to="`/filemanager/root`" class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
+                       :class="{'link-dark': cloudService !== 'google-drive'}"
+                       @click="setCloudService('google-drive')">
+            <img src="@/assets/google-drive.png" alt="Google Drive" class="cloud-img me-2">
+            Google Drive
+          </router-link>
+        </li>
+        <li>
+          <router-link :to="`/filemanager/root`" class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
+                       :class="{'link-dark': cloudService !== 'dropbox'}"
+                       @click="setCloudService('dropbox')">
+            <img src="@/assets/dropbox.png" alt="Dropbox" class="cloud-img me-2">
+            Dropbox
+          </router-link>
+        </li>
+      </ul>
+    </div>
+
     <div v-if="$route.name === 'filemanager'">
       <button class="btn btn-warning" @click="openCreateFolderOverlay">
         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-folder-plus"
@@ -73,7 +99,7 @@
          id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
         <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Profile Photo" width="32" height="32"
              class="rounded-circle me-2">
-        <strong>Jesús</strong>
+        <strong>{{ userName }}</strong>
       </a>
       <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2" style="">
         <li><a class="dropdown-item" href="#">New project...</a></li>
@@ -157,13 +183,15 @@
 
 <script>
 import axios from 'axios';
+import {mapState, mapMutations} from 'vuex';
 
 export default {
   data() {
     return {
       selectedFiles: [],
       folderName: '',
-      profilePhotoUrl: null,
+      profilePhotoUrl: '',
+      userName: '',
       showUploadFileOverlay: false,
       showCreateFolderOverlay: false,
       isDraggingUploadFile: false,
@@ -181,19 +209,27 @@ export default {
       default: () => []
     }
   },
+  computed: {
+    ...mapState(['cloudService']),
+  },
   watch: {
     droppedFiles(newFiles) {
       this.selectedFiles = [...newFiles];
       this.openUploadFileOverlay();
     },
+    cloudService() {
+      this.getProfilePhoto();
+      this.getUserName();
+    }
   },
   mounted() {
     this.getProfilePhoto();
+    this.getUserName();
   },
   methods: {
     // Método para obtener la foto de perfil
     getProfilePhoto() {
-      axios.get('/api/google-drive/profilePhoto')
+      axios.get('/api/' + this.cloudService + '/profilePhoto')
           .then(response => {
             // Al recibir la respuesta, asignar la URL de la foto de perfil a profilePhotoUrl
             this.profilePhotoUrl = response.data;
@@ -201,6 +237,28 @@ export default {
           .catch(error => {
             // Manejar errores de la petición
             console.error('Error al obtener la foto de perfil:', error);
+          });
+    },
+    // Método para obtener el nombre del usuario
+    getUserName() {
+      axios.get('/api/' + this.cloudService + '/userName')
+          .then(response => {
+            // Al recibir la respuesta, procesar el nombre completo
+            const fullName = response.data;
+
+            // Dividir el nombre completo en palabras
+            const nameParts = fullName.split(' ');
+
+            // Obtener el primer nombre y el primer apellido
+            const firstName = nameParts[0];
+            const lastName = nameParts.length > 1 ? nameParts[1] : '';
+
+            // Asignar el primer nombre y el primer apellido a userName
+            this.userName = `${firstName} ${lastName}`;
+          })
+          .catch(error => {
+            // Manejar errores de la petición
+            console.error('Error al obtener el nombre de usuario:', error);
           });
     },
     // Método para manejar la selección de archivos
@@ -236,7 +294,7 @@ export default {
           formData.append('file', file);
 
           // Realizar una petición al backend para cada archivo
-          axios.post(`/api/google-drive/uploadFile/${this.currentFolderId}`, formData)
+          axios.post(`/api/` + this.cloudService + `/uploadFile/${this.currentFolderId}`, formData)
               .then(response => {
                 console.log(response.data);
                 // Eliminar el archivo de la lista de archivos seleccionados si se cargó correctamente
@@ -263,7 +321,7 @@ export default {
     // Método para crear nueva carpeta
     createFolder() {
       // Enviar una solicitud al backend para crear una nueva carpeta
-      axios.post(`/api/google-drive/createFolder/` + this.currentFolderId + '?name=' + this.folderName)
+      axios.post(`/api/` + this.cloudService + `/createFolder/` + this.currentFolderId + '?name=' + this.folderName)
           .then(response => {
             // Procesar la respuesta del backend, por ejemplo, mostrar un mensaje de éxito
             console.log('Carpeta creada exitosamente:', response.data);
@@ -302,6 +360,7 @@ export default {
         this.isDraggingUploadFile = false;
       }
     },
+    ...mapMutations(['setCloudService'])
   }
 };
 </script>
@@ -341,4 +400,7 @@ export default {
   background-color: rgb(190, 190, 190, 0.6);
 }
 
+.cloud-img {
+  max-height: 26px;
+}
 </style>

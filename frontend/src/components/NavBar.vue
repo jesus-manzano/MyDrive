@@ -86,6 +86,7 @@
 
 <script>
 import axios from 'axios';
+import {mapState} from "vuex";
 
 export default {
   data() {
@@ -104,6 +105,12 @@ export default {
         this.$store.commit('setSearchInFolder', value);
       },
     },
+    ...mapState(['cloudService']),
+  },
+  watch: {
+    cloudService() {
+      this.getProfilePhoto();
+    }
   },
   mounted() {
     this.getProfilePhoto();
@@ -117,7 +124,7 @@ export default {
     },
     // Método para obtener la foto de perfil
     getProfilePhoto() {
-      axios.get('/api/google-drive/profilePhoto')
+      axios.get('/api/' + this.cloudService + '/profilePhoto')
           .then(response => {
             // Al recibir la respuesta, asignar la URL de la foto de perfil a profilePhotoUrl
             this.profilePhotoUrl = response.data;
