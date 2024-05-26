@@ -41,6 +41,7 @@ export default {
   },
   computed: {
     ...mapState(['cloudService']),
+    ...mapState(['isAuthenticated'])
   },
   watch: {
     currentFolderId() {
@@ -54,7 +55,13 @@ export default {
     this.getFolderPath();
   },
   methods: {
+    // Método para saber si el usuario ya ha seleccionado una nube
+    isSelectedCloudService() {
+      return this.cloudService !== '';
+    },
     getFolderPath() {
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
+
       this.currentFolderPath = [];
       if (this.$route.name === 'filemanager') {
         axios.get(`/api/` + this.cloudService + `/path/` + this.currentFolderId)

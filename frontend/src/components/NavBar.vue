@@ -106,6 +106,7 @@ export default {
       },
     },
     ...mapState(['cloudService']),
+    ...mapState(['isAuthenticated'])
   },
   watch: {
     cloudService() {
@@ -116,6 +117,10 @@ export default {
     this.getProfilePhoto();
   },
   methods: {
+    // Método para saber si el usuario ya ha seleccionado una nube
+    isSelectedCloudService() {
+      return this.cloudService !== '';
+    },
     // Método para indicar que se buscarán archivos
     searchFiles() {
       // Navegar a la misma ruta pero con el parámetro de consulta searchText
@@ -124,6 +129,8 @@ export default {
     },
     // Método para obtener la foto de perfil
     getProfilePhoto() {
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
+
       axios.get('/api/' + this.cloudService + '/profilePhoto')
           .then(response => {
             // Al recibir la respuesta, asignar la URL de la foto de perfil a profilePhotoUrl

@@ -1,15 +1,15 @@
 <template>
   <div class="bg-light" style="height: 100vh;">
-    <NavBar/>
+    <NavBar v-if="authenticationChecked"/>
     <div class="d-flex flex-row">
-      <SideBar :current-folder-id="currentFolderId" :droppedFiles="droppedFiles"/>
+      <SideBar v-if="authenticationChecked" :current-folder-id="currentFolderId" :droppedFiles="droppedFiles"/>
       <!-- Contenido principal -->
       <main id="droparea" :class="{ 'dragover': isDragging }" class="flex-grow-1 p-3"
             style="height: calc(100vh - 80px); overflow-y: auto;" @dragover.prevent="onDragOver"
             @dragleave.prevent="onDragLeave($event)" @drop.prevent="handleFileDrop">
         <div class="d-flex align-items-center">
           <!-- Barra de navegación de directorios -->
-          <NavBarDir :current-folder-id="currentFolderId"/>
+          <NavBarDir v-if="authenticationChecked" :current-folder-id="currentFolderId"/>
 
           <!-- Dropdown de orden -->
           <div v-if="$route.name != 'recent'" class="dropdown ms-auto">
@@ -52,6 +52,11 @@
           <h2>Suelta el archivo para subirlo a la nube</h2>
         </div>
 
+        <!-- Mensaje en caso de no estar autenticado en ninguna nube -->
+        <div v-show="authenticationChecked && isNotAuthenticatedInAnyCloud">
+          <div class="display-6 my-5"><b>Inicia Sesión</b> en alguna de las nubes disponibles en la barra lateral</div>
+        </div>
+
         <!-- Mensaje en caso de no mostrarse ningún archivo -->
         <div v-if="!hasFolders && !hasFiles && $route.name === 'filemanager'"
              class="d-flex flex-column justify-content-center align-items-center">
@@ -91,10 +96,12 @@
         </div>
 
         <!-- Listado de carpetas -->
-        <FolderList :current-folder-id="currentFolderId" :searchText="searchText" :order-by="orderBy"/>
+        <FolderList v-if="authenticationChecked" :current-folder-id="currentFolderId" :searchText="searchText"
+                    :order-by="orderBy"/>
 
         <!-- Listado de archivos -->
-        <FileList :current-folder-id="currentFolderId" :searchText="searchText" :order-by="orderBy" :period="period"/>
+        <FileList v-if="authenticationChecked" :current-folder-id="currentFolderId" :searchText="searchText"
+                  :order-by="orderBy" :period="period"/>
       </main>
     </div>
   </div>
@@ -106,12 +113,14 @@ import SideBar from "@/components/SideBar";
 import NavBarDir from "@/components/NavBarDir";
 import FolderList from "@/components/FolderList";
 import FileList from "@/components/FileList";
-import {mapState} from 'vuex';
+import {mapState, mapMutations, mapGetters} from 'vuex';
+import axios from 'axios';
 
 export default {
   components: {FileList, FolderList, NavBarDir, SideBar, NavBar},
   data() {
     return {
+      authenticationChecked: false,
       isDragging: false,
       droppedFiles: [],
       orderBy: 'name',
@@ -134,7 +143,13 @@ export default {
     searchText() {
       return this.$route.query.q || ''; // Si no hay parámetro 'q', devuelve una cadena vacía
     },
-    ...mapState(['hasFolders', 'hasFiles']) // Mapea si hay carpetas o archivos en los componentes hijos
+    ...mapState(['hasFolders', 'hasFiles']), // Mapea si hay carpetas o archivos en los componentes hijos
+    ...mapState(['cloudService']), // Servicio que etá usando actualmente
+    ...mapState(['isAuthenticated']), // Servicios en lo que está autenticado el usuario
+    ...mapGetters(['isNotAuthenticatedInAnyCloud']), // Comprueba si no está autenticado en ninguna nube
+  },
+  async mounted() {
+    await this.initialize();
   },
   methods: {
     onDragOver() {
@@ -159,7 +174,29 @@ export default {
         const files = event.dataTransfer.files;
         this.droppedFiles = Array.from(files);
       }
-    }
+    },
+    ...mapMutations(['setCloudService']),
+    ...mapMutations(['setAuthentication']),
+    async initialize() {
+      await this.checkAllAuthenticatedCloudService();
+      if (this.isNotAuthenticatedInAnyCloud || !this.isAuthenticated[this.cloudService])
+        this.setCloudService(''); // Reseteamos nube
+      this.authenticationChecked = true; // Marcar como finalizada la verificación de autenticación
+    },
+    async checkAllAuthenticatedCloudService() {
+      const services = ['google-drive', 'dropbox'];
+      const promises = services.map(service =>
+          axios.get(`/api/${service}/oauth/check`)
+              .then(response => {
+                this.setAuthentication({service, status: response.data});
+              })
+              .catch(error => {
+                console.error(`Error al comprobar autenticación para ${service}:`, error);
+                this.setAuthentication({service, status: false});
+              })
+      );
+      await Promise.all(promises);
+    },
   }
 }
 </script>

@@ -1,5 +1,6 @@
 package com.mydrive.backend.controllers;
 
+import org.springframework.context.annotation.Scope;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -10,6 +11,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
@@ -17,25 +19,30 @@ import org.springframework.web.servlet.view.RedirectView;
 import java.util.List;
 
 @RestController
+@Scope(WebApplicationContext.SCOPE_SESSION)
 @RequestMapping("/api/google-drive")
 public class GoogleDriveRestController {
 
     @Autowired
     private GoogleDriveService googleDriveService;
 
-    @GetMapping("/signin")
-    public void signIn(HttpServletResponse response) throws Exception {
+    @GetMapping("/oauth/authorize")
+    public void handleAuthorization(HttpServletResponse response) throws Exception {
         googleDriveService.redirectToAuthorization(response);
     }
 
-    @GetMapping("/oauth")
-    public ModelAndView handleAuthorizationCallback(HttpServletRequest request) throws Exception {
-        String code = request.getParameter("code");
+    @GetMapping("/oauth/callback")
+    public ModelAndView handleAuthorizationCallback(@RequestParam("code") String code) throws Exception {
         if (code != null) {
-            googleDriveService.saveAuthorizationToken(code);
-            return new ModelAndView(new RedirectView("/filemanager/root"));
+            googleDriveService.authenticateUser(code);
+            return new ModelAndView(new RedirectView("http://localhost:8081/filemanager/root"));
         }
         return new ModelAndView(new RedirectView("/error"));
+    }
+
+    @GetMapping("/oauth/check")
+    public ResponseEntity<Boolean> checkAuthentication() {
+        return googleDriveService.checkAuthentication();
     }
 
     @PostMapping("/createFolder/{folderId}")

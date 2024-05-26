@@ -5,16 +5,18 @@ import com.mydrive.backend.services.DropboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.*;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @RestController
+@Scope(WebApplicationContext.SCOPE_SESSION)
 @RequestMapping("/api/dropbox")
 public class DropboxRestController {
 
@@ -24,18 +26,23 @@ public class DropboxRestController {
     private static final Logger logger = LoggerFactory.getLogger(DropboxRestController.class);
 
     @GetMapping("/oauth/authorize")
-    public ModelAndView authorizeDropbox() {
-        String authorizeUrl = dropboxService.authorizeUrl();
+    public ModelAndView handleAuthorization() {
+        String authorizeUrl = dropboxService.redirectToAuthorization();
         return new ModelAndView(new RedirectView(authorizeUrl));
     }
 
-    @GetMapping("/oauth/token")
-    public ModelAndView exchangeCodeForToken(@RequestParam("code") String code) throws Exception {
+    @GetMapping("/oauth/callback")
+    public ModelAndView handleAuthorizationCallback(@RequestParam("code") String code) throws Exception {
         if (code != null) {
-            String finalUrl = dropboxService.exchangeCodeForToken(code);
+            String finalUrl = dropboxService.authenticateUser(code);
             return new ModelAndView(new RedirectView(finalUrl));
         }
         return new ModelAndView(new RedirectView("/error"));
+    }
+
+    @GetMapping("/oauth/check")
+    public ResponseEntity<Boolean> checkAuthentication() {
+        return dropboxService.checkAuthentication();
     }
 
     @GetMapping("/profilePhoto")

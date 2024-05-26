@@ -356,6 +356,7 @@ export default {
   },
   computed: {
     ...mapState(['cloudService']),
+    ...mapState(['isAuthenticated']),
   },
   watch: {
     currentFolderId() {
@@ -380,10 +381,14 @@ export default {
     this.getFolders();
   },
   methods: {
+    // Método para saber si el usuario ya ha seleccionado una nube
+    isSelectedCloudService() {
+      return this.cloudService !== '';
+    },
     // Método para definir el endpoint según la ruta en la que nos encontramos
     // y dependiendo de la configuración del cliente
     getEndpoint() {
-      let searching = (this.$route.query.q || '') != ''; // Si tiene algún valor q considera que se está buscando
+      let searching = (this.$route.query.q || '') !== ''; // Si tiene algún valor q considera que se está buscando
       let endpoint = '';
 
       if (this.$route.name === 'filemanager') {
@@ -396,11 +401,13 @@ export default {
     },
     // Método para obtener las carpetas
     getFolders() {
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
+
       this.folders = []; // Limpiamos las carpetas actuales
       this.clearSelection(); // No hay ningún elemento seleccionado
       const endpoint = this.getEndpoint();
 
-      if (endpoint != '') {
+      if (endpoint !== '') {
         axios.get(endpoint)
             .then(response => {
               this.folders = response.data;

@@ -53,20 +53,20 @@
     <div class="mb-auto" style="max-height: 108px; overflow-y: auto;">
       <ul class="nav nav-pills flex-column">
         <li>
-          <router-link :to="`/filemanager/root`" class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
-                       :class="{'link-dark': cloudService !== 'google-drive'}"
-                       @click="setCloudService('google-drive')">
+          <a class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
+             :class="{'link-dark': cloudService !== 'google-drive'}"
+             @click="handleClickCloudService('google-drive')">
             <img src="@/assets/google-drive.png" alt="Google Drive" class="cloud-img me-2">
             Google Drive
-          </router-link>
+          </a>
         </li>
         <li>
-          <router-link :to="`/filemanager/root`" class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
-                       :class="{'link-dark': cloudService !== 'dropbox'}"
-                       @click="setCloudService('dropbox')">
+          <a class="nav-link sidebar-link d-flex align-items-center fs-5 p-2 my-1"
+             :class="{'link-dark': cloudService !== 'dropbox'}"
+             @click.prevent="handleClickCloudService('dropbox')">
             <img src="@/assets/dropbox.png" alt="Dropbox" class="cloud-img me-2">
             Dropbox
-          </router-link>
+          </a>
         </li>
       </ul>
     </div>
@@ -211,6 +211,7 @@ export default {
   },
   computed: {
     ...mapState(['cloudService']),
+    ...mapState(['isAuthenticated'])
   },
   watch: {
     droppedFiles(newFiles) {
@@ -229,6 +230,8 @@ export default {
   methods: {
     // Método para obtener la foto de perfil
     getProfilePhoto() {
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
+
       axios.get('/api/' + this.cloudService + '/profilePhoto')
           .then(response => {
             // Al recibir la respuesta, asignar la URL de la foto de perfil a profilePhotoUrl
@@ -241,6 +244,8 @@ export default {
     },
     // Método para obtener el nombre del usuario
     getUserName() {
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
+
       axios.get('/api/' + this.cloudService + '/userName')
           .then(response => {
             // Al recibir la respuesta, procesar el nombre completo
@@ -360,7 +365,17 @@ export default {
         this.isDraggingUploadFile = false;
       }
     },
-    ...mapMutations(['setCloudService'])
+    ...mapMutations(['setCloudService']),
+    ...mapMutations(['setAuthentication']),
+    handleClickCloudService(cloudService) {
+      this.setCloudService(cloudService);
+
+      if (!this.isAuthenticated[cloudService]) {
+        window.location.href = `/api/${cloudService}/oauth/authorize`;
+      } else {
+        this.$router.push('/filemanager/root');
+      }
+    }
   }
 };
 </script>

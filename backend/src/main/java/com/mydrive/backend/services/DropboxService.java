@@ -3,22 +3,15 @@ package com.mydrive.backend.services;
 import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
-import com.dropbox.core.v2.sharing.AccessLevel;
-import com.dropbox.core.v2.sharing.RequestedVisibility;
-import com.dropbox.core.v2.sharing.SharedLinkMetadata;
-import com.dropbox.core.v2.sharing.SharedLinkSettings;
 import com.dropbox.core.v2.users.FullAccount;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.api.client.auth.oauth2.Credential;
-import com.google.api.services.drive.Drive;
-import com.google.api.services.drive.model.About;
-import com.google.api.services.drive.model.File;
 import com.mydrive.backend.dtos.FileDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -27,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.ByteArrayInputStream;
@@ -35,9 +29,8 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-import static com.dropbox.core.v2.sharing.AccessLevel.OWNER;
-
 @Service
+@Scope(WebApplicationContext.SCOPE_SESSION)
 @PropertySource("classpath:application-secrets.properties")
 public class DropboxService {
 
@@ -47,14 +40,14 @@ public class DropboxService {
     @Value("${dropbox.clientSecret}")
     private String clientSecret;
 
-    @Value("${dropbox.redirectUri}")
+    @Value("${dropbox.oauth.redirectUri}")
     private String redirectUri;
 
-    DbxClientV2 client;
+    DbxClientV2 client = null;
 
     private static final Logger logger = LoggerFactory.getLogger(DropboxService.class);
 
-    public String authorizeUrl() {
+    public String redirectToAuthorization() {
         String authorizeUrl = "https://www.dropbox.com/oauth2/authorize"
                 + "?client_id=" + clientId
                 + "&token_access_type=offline"
@@ -64,7 +57,7 @@ public class DropboxService {
         return authorizeUrl; // Redirect to Dropbox authorization URL
     }
 
-    public String exchangeCodeForToken(String code) throws Exception {
+    public String authenticateUser(String code) throws Exception {
         // Exchange the code for an access token
         String tokenUrl = "https://www.dropbox.com/oauth2/token";
         RestTemplate restTemplate = new RestTemplate();
@@ -91,10 +84,15 @@ public class DropboxService {
             DbxRequestConfig config = new DbxRequestConfig("MyDrive");
             client = new DbxClientV2(config, accessToken);
 
-            return "/api/dropbox/profilePhoto";
+            return "http://localhost:8081/filemanager/root";
         } else {
             return "/error";
         }
+    }
+
+    public ResponseEntity<Boolean> checkAuthentication() {
+        if (client != null) return ResponseEntity.ok(true);
+        return ResponseEntity.ok(false);
     }
 
     public String getProfilePhoto() throws Exception {

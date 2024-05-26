@@ -1,33 +1,31 @@
 package com.mydrive.backend.services;
 
-import com.dropbox.core.v2.files.Metadata;
+import com.google.api.client.googleapis.auth.oauth2.*;
 import com.mydrive.backend.dtos.FileDTO;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
+import jakarta.servlet.http.HttpServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
-import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeRequestUrl;
-import com.google.api.client.googleapis.auth.oauth2.GoogleClientSecrets;
-import com.google.api.client.googleapis.auth.oauth2.GoogleTokenResponse;
 import com.google.api.services.drive.Drive;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
-import com.google.api.client.util.store.FileDataStoreFactory;
 import com.google.api.services.drive.DriveScopes;
 import jakarta.annotation.PostConstruct;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import com.google.api.services.drive.model.File;
 
@@ -39,22 +37,22 @@ import java.util.Date;
 import java.util.List;
 
 @Service
+@Scope(WebApplicationContext.SCOPE_SESSION)
 public class GoogleDriveService {
 
-    @Value("${google.oauth.callback.uri}")
-    private String callbackUri;
+    @Value("${google.oauth.redirectUri}")
+    private String redirectUri;
 
     // Credenciales para usar la API de Google Drive
     @Value("${google.secret.key.path}")
     private Resource gdSecretKeys;
 
-    private static final String USER_IDENTIFIER_KEY = "MY_USER";
-    private static final String TOKENS_DIRECTORY_PATH = "tokens";
     private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
 
-    private GoogleAuthorizationCodeFlow flow;
+    private GoogleAuthorizationCodeFlow flow = null; // Flujo de autorización
+    private Drive drive = null; // Servicio para hacer las peticiones
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleDriveService.class);
 
@@ -63,49 +61,55 @@ public class GoogleDriveService {
         GoogleClientSecrets secrets = GoogleClientSecrets.load(JSON_FACTORY,
                 new InputStreamReader(gdSecretKeys.getInputStream()));
         flow = new GoogleAuthorizationCodeFlow.Builder(HTTP_TRANSPORT, JSON_FACTORY, secrets, SCOPES)
-                .setDataStoreFactory(new FileDataStoreFactory(new java.io.File(TOKENS_DIRECTORY_PATH)))
                 .build();
     }
 
     public void redirectToAuthorization(HttpServletResponse response) throws Exception {
         GoogleAuthorizationCodeRequestUrl url = flow.newAuthorizationUrl();
-        String redirectUrl = url.setRedirectUri(callbackUri).setAccessType("offline").build();
+        String redirectUrl = url.setRedirectUri(redirectUri).setAccessType("offline").build();
         response.sendRedirect(redirectUrl);
     }
 
-    public void saveAuthorizationToken(String code) throws Exception {
-        GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(callbackUri).execute();
-        flow.createAndStoreCredential(response, USER_IDENTIFIER_KEY);
+    public void authenticateUser(String code) throws Exception {
+        GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(redirectUri).execute();
+        Credential cred = flow.createAndStoreCredential(response, null);
+
+        drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
+                .setApplicationName("MyDrive").build();
+    }
+
+    public ResponseEntity<Boolean> checkAuthentication() {
+        if (drive != null) return ResponseEntity.ok(true);
+        return ResponseEntity.ok(false);
     }
 
     public String getProfilePhoto() throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
+        // Obtener información del usuario
         About about = drive.about().get().setFields("user").execute();
+
         return about.getUser().getPhotoLink();
     }
 
     public String getUserName() throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
+        // Obtener información del usuario
         About about = drive.about().get().setFields("user").execute();
+
         return about.getUser().getDisplayName();
     }
 
     public List<FileDTO> getFoldersInFolder(String folderId, String folderName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
 
-        String query = "'" + folderId + "' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'";
+        String query = "'" + folderId
+                + "' in parents and trashed=false and mimeType='application/vnd.google-apps.folder'";
 
         // Agregar filtro por nombre de carpeta si se proporciona
         if (!folderName.isEmpty()) {
             query += " and name contains '" + folderName + "'";
         }
         // Realizamos la consulta para obtener todas las carpetas en esta carpeta
-        FileList allFolders = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFolders = drive.files().list().setQ(query)
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
 
         List<FileDTO> foldersDTOList = new ArrayList<>();
 
@@ -119,10 +123,9 @@ public class GoogleDriveService {
     }
 
     public List<FileDTO> getFilesInFolder(String folderId, String fileName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
-        String query = "'" + folderId + "' in parents and trashed=false " + "and mimeType != 'application/vnd.google-apps.folder' " + "and mimeType != 'application/vnd.google-apps.shortcut'";
+        String query = "'" + folderId
+                + "' in parents and trashed=false and mimeType != 'application/vnd.google-apps.folder' "
+                + "and mimeType != 'application/vnd.google-apps.shortcut'";
 
         // Agregar filtro por nombre de archivo si se proporciona
         if (!fileName.isEmpty()) {
@@ -130,7 +133,9 @@ public class GoogleDriveService {
         }
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
-        FileList allFiles = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFiles = drive.files().list().setQ(query)
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
 
@@ -143,11 +148,6 @@ public class GoogleDriveService {
     }
 
     public List<FileDTO> getRecentFiles(String maxDate, String fileName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
-                .setApplicationName("googledrivespringbootexample")
-                .build();
-
         // Convertir la cadena de texto a un objeto Date
         SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss");
         Date parsedDate = formatter.parse(maxDate);
@@ -165,8 +165,7 @@ public class GoogleDriveService {
 
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
-        FileList allFiles = drive.files().list()
-                .setQ(query)
+        FileList allFiles = drive.files().list().setQ(query)
                 .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
                 .execute();
 
@@ -181,12 +180,14 @@ public class GoogleDriveService {
     }
 
     public List<FileDTO> searchFolders(String folderName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         // Realizamos la consulta para obtener todas las carpetas
         // que coinciden con este nombre
-        FileList allFiles = drive.files().list().setQ("trashed=false and name contains '" + folderName + "'" + " and mimeType='application/vnd.google-apps.folder'").setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFiles = drive.files().list()
+                .setQ("trashed=false and name contains '"
+                        + folderName
+                        + "' and mimeType='application/vnd.google-apps.folder'")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
 
         List<FileDTO> foldersDTOList = new ArrayList<>();
 
@@ -200,12 +201,15 @@ public class GoogleDriveService {
     }
 
     public List<FileDTO> searchFiles(String fileName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         // Realizamos la consulta para obtener todos los archivos
         // que coinciden con este nombre
-        FileList allFiles = drive.files().list().setQ("trashed=false and name contains '" + fileName + "'" + "and mimeType != 'application/vnd.google-apps.folder' " + "and mimeType != 'application/vnd.google-apps.shortcut'").setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFiles = drive.files().list()
+                .setQ("trashed=false and name contains '"
+                        + fileName
+                        + "' and mimeType != 'application/vnd.google-apps.folder' "
+                        + "and mimeType != 'application/vnd.google-apps.shortcut'")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
 
@@ -218,9 +222,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<String> createFolder(String folderId, String folderName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         File folder = new File();
         folder.setName(folderName);
         folder.setMimeType("application/vnd.google-apps.folder");
@@ -232,12 +233,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<String> moveFile(String fileId, String targetFolderId) throws Exception {
-        // Cargar las credenciales y crear el cliente de Google Drive
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
-                .setApplicationName("googledrivespringbootexample")
-                .build();
-
         // Obtener la información del archivo para obtener el padre actual
         File file = drive.files().get(fileId)
                 .setFields("parents")
@@ -262,9 +257,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<String> renameFile(String fileId, String newName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         File file = new File();
         file.setName(newName);
 
@@ -277,9 +269,6 @@ public class GoogleDriveService {
         if (file.isEmpty()) {
             return ResponseEntity.badRequest().body("Archivo vacío");
         }
-
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
 
         // Crear el metadata del archivo
         File fileMetadata = new File();
@@ -294,9 +283,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<byte[]> downloadFile(String fileId) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         OutputStream outputStream = new ByteArrayOutputStream();
         drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
 
@@ -309,9 +295,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<String> throwAwayFile(String fileId) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         // Obtener el archivo para modificarlo y enviarlo a la papelera
         File file = new File();
         file.setTrashed(true);
@@ -324,11 +307,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<String> restoreFile(String fileId) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
-                .setApplicationName("googledrivespringbootexample")
-                .build();
-
         // Obtener el archivo para modificarlo y restaurarlo de la papelera
         File file = new File();
         file.setTrashed(false);
@@ -341,9 +319,6 @@ public class GoogleDriveService {
     }
 
     public ResponseEntity<String> deleteFile(String fileId) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         // Enviar solicitud para eliminar el archivo
         drive.files().delete(fileId).execute();
 
@@ -358,9 +333,6 @@ public class GoogleDriveService {
     }
 
     public List<FileDTO> getFilesInBin(String fileName) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         String query = "trashed=true and mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.shortcut'";
 
         // Agregar filtro por nombre de archivo si se proporciona
@@ -369,7 +341,9 @@ public class GoogleDriveService {
         }
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
-        FileList allFiles = drive.files().list().setQ(query).setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)").execute();
+        FileList allFiles = drive.files().list().setQ(query)
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
 
@@ -382,9 +356,6 @@ public class GoogleDriveService {
     }
 
     public List<FileDTO> getPathFolder(String folderId) throws Exception {
-        Credential cred = flow.loadCredential(USER_IDENTIFIER_KEY);
-        Drive drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred).setApplicationName("googledrivespringbootexample").build();
-
         // Obtener la información del archivo con el ID del folder
         File file = drive.files().get(folderId).setFields("id, name, parents").execute();
         List<FileDTO> fullPath = new ArrayList<>();

@@ -400,6 +400,7 @@ export default {
   },
   computed: {
     ...mapState(['cloudService']),
+    ...mapState(['isAuthenticated'])
   },
   watch: {
     currentFolderId() {
@@ -430,10 +431,14 @@ export default {
     this.getFiles();
   },
   methods: {
+    // Método para saber si el usuario ya ha seleccionado una nube
+    isSelectedCloudService() {
+      return this.cloudService !== '';
+    },
     // Método para definir el endpoint según la ruta en la que nos encontramos
     // y dependiendo de la configuración del cliente
     getEndpoint() {
-      let searching = (this.$route.query.q || '') != ''; // Si tiene algún valor q considera que se está buscando
+      let searching = (this.$route.query.q || '') !== ''; // Si tiene algún valor q considera que se está buscando
       let endpoint = '';
 
       // Dependiendo de la vista en la que nos encontremos
@@ -454,11 +459,13 @@ export default {
     },
     // Método para obtener todos los archivos que no son directorios
     getFiles() {
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
+
       this.files = []; // Limpiamos los archivos actuales
       this.clearSelection(); // Ningún archivo seleccionado
       const endpoint = this.getEndpoint();
 
-      if (endpoint != '') {
+      if (this.cloudService !== '' && endpoint !== '') {
         axios.get(endpoint)
             .then(response => {
               this.files = response.data;
