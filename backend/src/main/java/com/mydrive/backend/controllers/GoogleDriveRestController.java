@@ -45,6 +45,11 @@ public class GoogleDriveRestController {
         return googleDriveService.checkAuthentication();
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout() {
+        return googleDriveService.logout();
+    }
+
     @PostMapping("/createFolder/{folderId}")
     public ResponseEntity<String> createFolder(@PathVariable String folderId, @RequestParam String name) throws Exception {
         return googleDriveService.createFolder(folderId, name);

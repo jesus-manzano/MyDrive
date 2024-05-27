@@ -95,6 +95,11 @@ public class DropboxService {
         return ResponseEntity.ok(false);
     }
 
+    public ResponseEntity<String> logout() {
+        this.client = null;
+        return ResponseEntity.ok("Successfully logged out from Google Drive");
+    }
+
     public String getProfilePhoto() throws Exception {
         // Obtener información de la cuenta del usuario
         FullAccount account = client.users().getCurrentAccount();

@@ -374,7 +374,9 @@ export default {
       }
     },
     cloudService() {
-      this.getFolders();
+      if (this.$route.path === '/filemanager/root') {
+        this.getFolders();
+      }
     }
   },
   mounted() {
@@ -401,12 +403,11 @@ export default {
     },
     // Método para obtener las carpetas
     getFolders() {
-      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
-
       this.folders = []; // Limpiamos las carpetas actuales
       this.clearSelection(); // No hay ningún elemento seleccionado
-      const endpoint = this.getEndpoint();
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
 
+      const endpoint = this.getEndpoint();
       if (endpoint !== '') {
         axios.get(endpoint)
             .then(response => {

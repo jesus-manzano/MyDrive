@@ -424,7 +424,9 @@ export default {
       this.getFiles();
     },
     cloudService() {
-      this.getFiles();
+      if (this.$route.path === '/filemanager/root') {
+        this.getFiles();
+      }
     }
   },
   mounted() {
@@ -459,12 +461,11 @@ export default {
     },
     // Método para obtener todos los archivos que no son directorios
     getFiles() {
-      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
-
       this.files = []; // Limpiamos los archivos actuales
       this.clearSelection(); // Ningún archivo seleccionado
-      const endpoint = this.getEndpoint();
+      if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
 
+      const endpoint = this.getEndpoint();
       if (this.cloudService !== '' && endpoint !== '') {
         axios.get(endpoint)
             .then(response => {

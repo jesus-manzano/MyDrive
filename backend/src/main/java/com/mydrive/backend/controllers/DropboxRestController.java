@@ -45,6 +45,11 @@ public class DropboxRestController {
         return dropboxService.checkAuthentication();
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<String> logout() {
+        return dropboxService.logout();
+    }
+
     @GetMapping("/profilePhoto")
     public ResponseEntity<String> getProfilePhoto() throws Exception {
         String profilePhotoUrl = dropboxService.getProfilePhoto();

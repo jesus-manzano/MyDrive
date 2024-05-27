@@ -48,7 +48,9 @@ export default {
       this.getFolderPath(); // Si cambia de directorio obtiene la ruta de dicho directorio
     },
     cloudService() {
-      this.getFolderPath();
+      if (this.$route.path === '/filemanager/root') {
+        this.getFolderPath();
+      }
     }
   },
   mounted() {
@@ -60,9 +62,9 @@ export default {
       return this.cloudService !== '';
     },
     getFolderPath() {
+      this.currentFolderPath = [];
       if (this.cloudService === '' || !this.isAuthenticated[this.cloudService]) return; // No ejecutamos
 
-      this.currentFolderPath = [];
       if (this.$route.name === 'filemanager') {
         axios.get(`/api/` + this.cloudService + `/path/` + this.currentFolderId)
             .then(response => {

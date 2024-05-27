@@ -12,7 +12,7 @@
           <NavBarDir v-if="authenticationChecked" :current-folder-id="currentFolderId"/>
 
           <!-- Dropdown de orden -->
-          <div v-if="$route.name != 'recent'" class="dropdown ms-auto">
+          <div v-if="isAuthenticated[cloudService] && $route.name != 'recent'" class="dropdown ms-auto">
             <button class="btn btn-dark dropdown-toggle" type="button" id="dropdownMenuButton"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
@@ -27,8 +27,8 @@
                      @click="setOrderBy('tam')">Tamaño</a></li>
             </ul>
           </div>
-          <div v-if="$route.name === 'recent'" class="dropdown ms-auto">
-            <button class="btn btn-secondary dropdown-toggle" type="button" id="dropdownMenuButton"
+          <div v-if="isAuthenticated[cloudService] && $route.name === 'recent'" class="dropdown ms-auto">
+            <button class="btn btn-dark dropdown-toggle" type="button" id="dropdownMenuButton"
                     data-bs-toggle="dropdown"
                     aria-expanded="false">
               Periodo max.
@@ -52,9 +52,20 @@
           <h2>Suelta el archivo para subirlo a la nube</h2>
         </div>
 
-        <!-- Mensaje en caso de no estar autenticado en ninguna nube -->
-        <div v-show="authenticationChecked && isNotAuthenticatedInAnyCloud">
-          <div class="display-6 my-5"><b>Inicia Sesión</b> en alguna de las nubes disponibles en la barra lateral</div>
+        <!-- Mensaje en caso de no estar autenticado en la nube actual -->
+        <div v-if="authenticationChecked && cloudService === ''"
+             class="d-flex flex-column justify-content-center align-items-center">
+          <div class="display-6 mt-5 mb-3 d-flex justify-content-center align-items-center">
+            <b>Accede</b>
+            <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" fill="currentColor"
+                 class="bi bi-box-arrow-in-right ms-2" viewBox="0 0 16 16">
+              <path fill-rule="evenodd"
+                    d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0z"/>
+              <path fill-rule="evenodd"
+                    d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+            </svg>
+          </div>
+          <div class="display-6 text-center">A alguna de las nubes disponibles en la barra lateral</div>
         </div>
 
         <!-- Mensaje en caso de no mostrarse ningún archivo -->
@@ -179,8 +190,10 @@ export default {
     ...mapMutations(['setAuthentication']),
     async initialize() {
       await this.checkAllAuthenticatedCloudService();
-      if (this.isNotAuthenticatedInAnyCloud || !this.isAuthenticated[this.cloudService])
+      if (this.isNotAuthenticatedInAnyCloud || !this.isAuthenticated[this.cloudService]) {
         this.setCloudService(''); // Reseteamos nube
+        this.$router.push('/filemanager/root');
+      }
       this.authenticationChecked = true; // Marcar como finalizada la verificación de autenticación
     },
     async checkAllAuthenticatedCloudService() {

@@ -7,6 +7,7 @@ import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
 import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
@@ -81,6 +82,11 @@ public class GoogleDriveService {
     public ResponseEntity<Boolean> checkAuthentication() {
         if (drive != null) return ResponseEntity.ok(true);
         return ResponseEntity.ok(false);
+    }
+
+    public ResponseEntity<String> logout() {
+        this.drive = null;
+        return ResponseEntity.ok("Successfully logged out from Google Drive");
     }
 
     public String getProfilePhoto() throws Exception {
