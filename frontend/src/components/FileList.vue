@@ -476,6 +476,7 @@ export default {
             })
             .catch(error => {
               console.error('Error fetching files:', error);
+              this.$router.push({ name: 'ErrorView', query: { code: 500, message: 'Error fetching files' } });
             });
       }
     },

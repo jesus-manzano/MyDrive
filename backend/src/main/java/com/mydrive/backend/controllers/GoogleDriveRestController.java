@@ -27,17 +27,15 @@ public class GoogleDriveRestController {
     private GoogleDriveService googleDriveService;
 
     @GetMapping("/oauth/authorize")
-    public void handleAuthorization(HttpServletResponse response) throws Exception {
-        googleDriveService.redirectToAuthorization(response);
+    public ModelAndView handleAuthorization() throws Exception {
+        String authorizeUrl = googleDriveService.redirectToAuthorization();
+        return new ModelAndView(new RedirectView(authorizeUrl));
     }
 
     @GetMapping("/oauth/callback")
     public ModelAndView handleAuthorizationCallback(@RequestParam("code") String code) throws Exception {
-        if (code != null) {
-            googleDriveService.authenticateUser(code);
-            return new ModelAndView(new RedirectView("http://localhost:8081/filemanager/root"));
-        }
-        return new ModelAndView(new RedirectView("/error"));
+        googleDriveService.authenticateUser(code);
+        return new ModelAndView(new RedirectView("http://localhost:8081/filemanager/root"));
     }
 
     @GetMapping("/oauth/check")

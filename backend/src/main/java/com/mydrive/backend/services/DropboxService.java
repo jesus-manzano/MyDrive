@@ -57,7 +57,7 @@ public class DropboxService {
         return authorizeUrl; // Redirect to Dropbox authorization URL
     }
 
-    public String authenticateUser(String code) throws Exception {
+    public void authenticateUser(String code) throws Exception {
         // Exchange the code for an access token
         String tokenUrl = "https://www.dropbox.com/oauth2/token";
         RestTemplate restTemplate = new RestTemplate();
@@ -83,10 +83,6 @@ public class DropboxService {
             // Use the access token to authenticate with Dropbox
             DbxRequestConfig config = new DbxRequestConfig("MyDrive");
             client = new DbxClientV2(config, accessToken);
-
-            return "http://localhost:8081/filemanager/root";
-        } else {
-            return "/error";
         }
     }
 

@@ -33,11 +33,8 @@ public class DropboxRestController {
 
     @GetMapping("/oauth/callback")
     public ModelAndView handleAuthorizationCallback(@RequestParam("code") String code) throws Exception {
-        if (code != null) {
-            String finalUrl = dropboxService.authenticateUser(code);
-            return new ModelAndView(new RedirectView(finalUrl));
-        }
-        return new ModelAndView(new RedirectView("/error"));
+        dropboxService.authenticateUser(code);
+        return new ModelAndView(new RedirectView("http://localhost:8081/filemanager/root"));
     }
 
     @GetMapping("/oauth/check")

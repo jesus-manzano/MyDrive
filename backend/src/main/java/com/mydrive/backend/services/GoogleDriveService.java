@@ -65,23 +65,24 @@ public class GoogleDriveService {
                 .build();
     }
 
-    public void redirectToAuthorization(HttpServletResponse response) throws Exception {
+    public String redirectToAuthorization() throws Exception {
         GoogleAuthorizationCodeRequestUrl url = flow.newAuthorizationUrl();
         String redirectUrl = url.setRedirectUri(redirectUri).setAccessType("offline").build();
-        response.sendRedirect(redirectUrl);
+        return redirectUrl; // Redirect to Google Drive authorization URL
     }
 
     public void authenticateUser(String code) throws Exception {
         GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(redirectUri).execute();
         Credential cred = flow.createAndStoreCredential(response, null);
 
-        drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
-                .setApplicationName("MyDrive").build();
+        //drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
+        //        .setApplicationName("MyDrive").build();
     }
 
     public ResponseEntity<Boolean> checkAuthentication() {
-        if (drive != null) return ResponseEntity.ok(true);
-        return ResponseEntity.ok(false);
+        return ResponseEntity.ok(true);
+        //if (drive != null) return ResponseEntity.ok(true);
+        //return ResponseEntity.ok(false);
     }
 
     public ResponseEntity<String> logout() {
