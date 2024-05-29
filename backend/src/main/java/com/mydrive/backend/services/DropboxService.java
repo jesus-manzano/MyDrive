@@ -7,15 +7,13 @@ import com.dropbox.core.v2.users.FullAccount;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mydrive.backend.dtos.FileDTO;
+import com.mydrive.backend.exceptions.CloudLimitationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.Scope;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
@@ -357,15 +355,27 @@ public class DropboxService {
         return ResponseEntity.ok("Archivo enviado a la papelera exitosamente");
     }
 
-    public ResponseEntity<String> restoreFile(String fileId) throws Exception {
-        // Obtener última revisión del archivo
-        ListRevisionsResult revisions = client.files().listRevisions(fileId);
-        String lastRevision = revisions.getEntries().get(0).getRev();
+    public ResponseEntity<String> restoreFile(String fileId) {
+        try {
+            // Lanza excepción para indicar que hay limitación por parte de la api
+            throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
+        } catch (CloudLimitationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al restaurar el archivo");
+        }
+    }
 
-        client.files().restore(fileId, lastRevision);
-
-        // Archivo restaurado exitosamente
-        return ResponseEntity.ok("Archivo restaurado exitosamente");
+    public ResponseEntity<String> deleteFile(String fileId) throws Exception {
+        try {
+            // Lanza excepción para indicar que hay limitación por parte de la api
+            throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
+        } catch (CloudLimitationException e) {
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar de forma " +
+                    "definitiva el archivo");
+        }
     }
 
     public ResponseEntity<String> getPreviewLink(String fileId) throws Exception {

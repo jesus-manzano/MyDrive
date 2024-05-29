@@ -75,14 +75,13 @@ public class GoogleDriveService {
         GoogleTokenResponse response = flow.newTokenRequest(code).setRedirectUri(redirectUri).execute();
         Credential cred = flow.createAndStoreCredential(response, null);
 
-        //drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
-        //        .setApplicationName("MyDrive").build();
+        drive = new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, cred)
+                .setApplicationName("MyDrive").build();
     }
 
     public ResponseEntity<Boolean> checkAuthentication() {
-        return ResponseEntity.ok(true);
-        //if (drive != null) return ResponseEntity.ok(true);
-        //return ResponseEntity.ok(false);
+        if (drive != null) return ResponseEntity.ok(true);
+        return ResponseEntity.ok(false);
     }
 
     public ResponseEntity<String> logout() {

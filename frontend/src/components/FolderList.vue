@@ -157,7 +157,7 @@
       </div>
       <div class="d-flex justify-content-between align-items-center">
         <button class="btn btn-danger" @click="closeRenameFolderOverlay">Cancelar</button>
-        <button class="btn btn-success" @click="renameFolder">Crear</button>
+        <button class="btn btn-success" @click="renameFolder">Aceptar</button>
       </div>
     </div>
   </div>
@@ -322,6 +322,7 @@
 <script>
 import axios from 'axios';
 import {mapMutations, mapState} from "vuex";
+import VsToast from "@vuesimple/vs-toast";
 
 export default {
   name: "FolderList",
@@ -416,7 +417,11 @@ export default {
               this.setHasFolders(this.folders.length > 0);
             })
             .catch(error => {
-              console.error('Error fetching folders:', error);
+              console.error(error); // Mensaje del servidor
+              this.$router.push({
+                name: 'ErrorView',
+                query: {code: 500, message: 'Error al obtener todas las carpetas'}
+              });
             });
       }
     },
@@ -438,18 +443,18 @@ export default {
       if (this.folderSelected) {
         // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
         axios.put(`/api/` + this.cloudService + `/moveFile/` + this.folderSelected.id + '?folderId=' + folderId)
-            .then(response => {
-              console.log('Archivo movido exitosamente:', response.data);
+            .then(() => {
               this.getFolders();
 
               this.folderSelected = null;
               this.folderMovePath = [];
               this.showMoveFolderOverlay = false;
               this.selectionMode = false;
+              VsToast.show({title: 'Carpeta movida con éxito', variant: 'success', position: 'bottom-center'});
             })
             .catch(error => {
-              // Manejar errores, por ejemplo, mostrar un mensaje de error
-              console.error('Error al renombrar el archivo:', error);
+              console.error(error);
+              VsToast.show({title: 'Error al mover la carpeta', variant: 'error', position: 'bottom-center'});
             });
       }
     },
@@ -461,12 +466,12 @@ export default {
         if (folder.selected) {
           // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
           axios.put(`/api/` + this.cloudService + `/moveFile/` + folder.id + '?folderId=' + targetFolderId)
-              .then(response => {
-                console.log('Archivo movido exitosamente:', response.data);
+              .then(() => {
+                VsToast.show({title: 'Carpeta movida con éxito', variant: 'success', position: 'bottom-center'});
               })
               .catch(error => {
-                // Manejar errores, por ejemplo, mostrar un mensaje de error
-                console.error('Error al renombrar el archivo:', error);
+                console.log(error);
+                VsToast.show({title: 'Error al mover la carpeta', variant: 'error', position: 'bottom-center'});
               })
               .finally(() => {
                 completedRequests++;
@@ -485,32 +490,41 @@ export default {
       if (this.folderSelected) {
         // Enviar una solicitud al backend para renombrar la carpeta
         axios.put(`/api/` + this.cloudService + `/renameFile/` + this.folderSelected.id + '?name=' + this.folderName)
-            .then(response => {
+            .then(() => {
               this.folderSelected.name = this.folderName;
-              console.log('Carpeta renombrada exitosamente:', response.data);
               this.sortFolders();
 
               this.folderName = '';
               this.folderSelected = null;
               this.showRenameFolderOverlay = false;
+              VsToast.show({title: 'Carpeta renombrada con éxito', variant: 'success', position: 'bottom-center'});
             })
             .catch(error => {
-              // Manejar errores, por ejemplo, mostrar un mensaje de error
-              console.error('Error al crear la carpeta:', error);
+              console.error(error);
+              VsToast.show({title: 'Error al renombrar la carpeta', variant: 'error', position: 'bottom-center'});
             });
       }
     },
     // Método para eliminar una carpeta y todos sus archivos de forma permanente
     deleteFolder(folderId, index) {
       axios.delete(`/api/` + this.cloudService + `/delete/${folderId}`)
-          .then(response => {
+          .then(() => {
             this.folders.splice(index, 1);
             this.setHasFolders(this.folders.length > 0);
             this.closeDeleteFolderOverlay();
-            console.log('Archivo eliminado de forma definitiva:', response.data);
+            VsToast.show({
+              title: 'Carpeta eliminada definitivamente con éxito',
+              variant: 'success',
+              position: 'bottom-center'
+            });
           })
           .catch(error => {
-            console.error('Error al eliminar el archivo de forma definitiva:', error);
+            console.error(error);
+            VsToast.show({
+              title: 'Error al eliminar definitivamente la carpeta',
+              variant: 'error',
+              position: 'bottom-center'
+            });
           });
     },
     // Método para eliminar todas las carpetas seleccinadas
@@ -522,11 +536,20 @@ export default {
         if (folder.selected) {
           // Enviar una solicitud al backend para eliminar la carpeta actual
           axios.delete(`/api/` + this.cloudService + `/delete/${folder.id}`)
-              .then(response => {
-                console.log('Carpeta eliminada permanentemente:', response.data);
+              .then(() => {
+                VsToast.show({
+                  title: 'Carpeta eliminada definitivamente con éxito',
+                  variant: 'success',
+                  position: 'bottom-center'
+                });
               })
               .catch(error => {
-                console.error('Error al eliminar la carpeta permanentemente:', error);
+                console.error(error);
+                VsToast.show({
+                  title: 'Error al eliminar definitivamente la carpeta',
+                  variant: 'error',
+                  position: 'bottom-center'
+                });
               })
               .finally(() => {
                 completedRequests++;
@@ -546,7 +569,11 @@ export default {
             this.foldersMoveOption = response.data;
           })
           .catch(error => {
-            console.error('Error fetching folders:', error);
+            console.log(error);
+            this.$router.push({
+              name: 'ErrorView',
+              query: {code: 500, message: 'Error al obtener las carpetas disponibles para mover las carpetas'}
+            });
           });
     },
     // Método para volver atrás en la ruta para mover una carpeta

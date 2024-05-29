@@ -126,6 +126,7 @@ import FolderList from "@/components/FolderList";
 import FileList from "@/components/FileList";
 import {mapState, mapMutations, mapGetters} from 'vuex';
 import axios from 'axios';
+import VsToast from "@vuesimple/vs-toast";
 
 export default {
   components: {FileList, FolderList, NavBarDir, SideBar, NavBar},
@@ -195,6 +196,9 @@ export default {
         this.$router.push('/filemanager/root');
       }
       this.authenticationChecked = true; // Marcar como finalizada la verificación de autenticación
+
+      this.checkSuccessfulLoginAndShowToast(); // Muestra mensaje de éxito error al completar el proceso de login
+      this.checkAndShowToast(); // Muestra el mensaje antes de la recarga de página
     },
     async checkAllAuthenticatedCloudService() {
       const services = ['google-drive', 'dropbox'];
@@ -210,6 +214,18 @@ export default {
       );
       await Promise.all(promises);
     },
+    checkSuccessfulLoginAndShowToast() {
+      if (this.cloudService !== '' && this.isAuthenticated[this.cloudService]) {
+        VsToast.show({title: 'Sesión iniciada con éxito', variant: 'success', position: 'bottom-center'});
+      } else VsToast.show({title: 'Error al iniciar sesión', variant: 'error', position: 'bottom-center'});
+    },
+    checkAndShowToast() {
+      const toastMessage = JSON.parse(localStorage.getItem('toastMessage'));
+      if (toastMessage) {
+        VsToast.show(toastMessage);
+        localStorage.removeItem('toastMessage');
+      }
+    }
   }
 }
 </script>

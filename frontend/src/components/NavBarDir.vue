@@ -25,6 +25,7 @@
 <script>
 import axios from "axios";
 import {mapState} from "vuex";
+import VsToast from "@vuesimple/vs-toast";
 
 export default {
   name: "NavBarDir",
@@ -72,7 +73,13 @@ export default {
               this.currentFolderPath.shift(); // Eliminamos el directorio raíz para que se muestre correctamente en el html
             })
             .catch(error => {
-              console.error('Error fetching folders:', error);
+              this.currentFolderPath = [];
+              console.error(error);
+              VsToast.show({
+                title: 'Error al obtener la ruta de la carpeta',
+                variant: 'warning',
+                position: 'bottom-center'
+              });
             });
       }
     }

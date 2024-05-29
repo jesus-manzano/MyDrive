@@ -130,7 +130,7 @@ public class DropboxRestController {
 
     @DeleteMapping("/delete/{fileId}")
     public ResponseEntity<String> deleteFile(@PathVariable String fileId) throws Exception {
-        return dropboxService.throwAwayFile(fileId);
+        return dropboxService.deleteFile(fileId);
     }
 
     @GetMapping("/files/bin")

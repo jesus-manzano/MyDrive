@@ -241,7 +241,7 @@
       </div>
       <div class="d-flex justify-content-between align-items-center">
         <button class="btn btn-danger" @click="closeRenameFileOverlay">Cancelar</button>
-        <button class="btn btn-success" @click="renameFile">Crear</button>
+        <button class="btn btn-success" @click="renameFile">Aceptar</button>
       </div>
     </div>
   </div>
@@ -364,6 +364,7 @@
 <script>
 import axios from 'axios';
 import {mapMutations, mapState} from 'vuex';
+import VsToast from '@vuesimple/vs-toast';
 
 export default {
   name: "FileList",
@@ -475,8 +476,11 @@ export default {
               this.setHasFiles(this.files.length > 0);
             })
             .catch(error => {
-              console.error('Error fetching files:', error);
-              this.$router.push({ name: 'ErrorView', query: { code: 500, message: 'Error fetching files' } });
+              console.error(error); // Mensaje del servidor
+              this.$router.push({
+                name: 'ErrorView',
+                query: {code: 500, message: 'Error al obtener todos los archivos'}
+              });
             });
       }
     },
@@ -500,7 +504,8 @@ export default {
             }
           })
           .catch(error => {
-            console.error('Error obteniendo el enlace de previsualización:', error);
+            console.error(error); // Mensaje del servidor
+            VsToast.show({title: 'Error al abrir el archivo', variant: 'error', position: 'bottom-center'});
           });
     },
     // Método para descargar un archivo
@@ -515,9 +520,11 @@ export default {
             link.setAttribute('download', fileName);
             document.body.appendChild(link);
             link.click();
+            VsToast.show({title: 'Archivo descargado con éxito', variant: 'success', position: 'bottom-center'});
           })
           .catch(error => {
-            console.error('Error al descargar el archivo:', error);
+            console.error(error); // Mensaje del servidor
+            VsToast.show({title: 'Error al descargar el archivo', variant: 'error', position: 'bottom-center'});
           });
     },
     // Método para descargar todos los archivos seleccionados
@@ -541,10 +548,11 @@ export default {
               this.fileSelected = null;
               this.fileMovePath = [];
               this.showMoveFileOverlay = false;
+              VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
             })
             .catch(error => {
-              // Manejar errores, por ejemplo, mostrar un mensaje de error
-              console.error('Error al renombrar el archivo:', error);
+              console.error(error);
+              VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
             });
       }
     },
@@ -556,12 +564,12 @@ export default {
         if (file.selected) {
           // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
           axios.put(`/api/` + this.cloudService + `/moveFile/` + file.id + '?folderId=' + targetFolderId)
-              .then(response => {
-                console.log('Archivo movido exitosamente:', response.data);
+              .then(() => {
+                VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
               })
               .catch(error => {
-                // Manejar errores, por ejemplo, mostrar un mensaje de error
-                console.error('Error al renombrar el archivo:', error);
+                console.error(error);
+                VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
               })
               .finally(() => {
                 completedRequests++;
@@ -593,32 +601,41 @@ export default {
 
         // Enviar una solicitud al backend para renombrar la carpeta
         axios.put(`/api/` + this.cloudService + `/renameFile/` + this.fileSelected.id + '?name=' + newFileName)
-            .then(response => {
+            .then(() => {
               this.fileSelected.name = newFileName;
-              console.log('Archivo renombrado exitosamente:', response.data);
               this.sortFiles();
 
               this.fileName = '';
               this.fileSelected = null;
               this.showRenameFileOverlay = false;
+              VsToast.show({title: 'Archivo renombrado con éxito', variant: 'success', position: 'bottom-center'});
             })
             .catch(error => {
-              // Manejar errores, por ejemplo, mostrar un mensaje de error
-              console.error('Error al renombrar el archivo:', error);
+              console.log(error);
+              VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
             });
       }
     },
     // Método para enviar un archivo a la papelera
     throwAwayFile(fileId, index) {
       axios.put(`/api/` + this.cloudService + `/throwAway/${fileId}`)
-          .then(response => {
+          .then(() => {
             console.log("Indice: " + index);
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
-            console.log('Archivo enviado a la papelera:', response.data);
+            VsToast.show({
+              title: 'Archivo enviado a la papelera con éxito',
+              variant: 'success',
+              position: 'bottom-center'
+            });
           })
           .catch(error => {
-            console.error('Error al enviar el archivo a la papelera:', error);
+            console.error(error);
+            VsToast.show({
+              title: 'Error al enviar el archivo a la papelera',
+              variant: 'error',
+              position: 'bottom-center'
+            });
           });
     },
     // Método para mover a la papelera todos los archivos seleccionados
@@ -633,13 +650,25 @@ export default {
     // Método para restaurar un archivo que estaba en la papelera
     restoreFile(fileId, index) {
       axios.put(`/api/` + this.cloudService + `/restore/${fileId}`)
-          .then(response => {
+          .then(() => {
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
-            console.log('Archivo restaurado:', response.data);
+            VsToast.show({title: 'Archivo restaurado con éxito', variant: 'success', position: 'bottom-center'});
           })
           .catch(error => {
-            console.error('Error al restaurar el archivo', error);
+            console.error(error);
+            if (error.response && error.response.status === 409) {
+              // Si el código de estado es 409 (CONFLICT), muestra un mensaje de limitación en la nube
+              VsToast.show({
+                title: 'No se puede restaurar el archivo',
+                message: 'Debido a limitaciones en la nube debe realizarlo de manera manual a través de la página web del servicio.',
+                variant: 'warning',
+                position: 'bottom-center'
+              });
+            } else {
+              // Si hay otro error, muestra un mensaje genérico de error
+              VsToast.show({title: 'Error al restaurar el archivo', variant: 'error', position: 'bottom-center'});
+            }
           });
     },
     // Método para restaurar todos los archivos seleccionados
@@ -654,13 +683,33 @@ export default {
     // Método para eliminar un archivo de forma permanente
     deleteFile(fileId, index) {
       axios.delete(`/api/` + this.cloudService + `/delete/${fileId}`)
-          .then(response => {
+          .then(() => {
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
-            console.log('Archivo eliminado de forma definitiva:', response.data);
+            VsToast.show({
+              title: 'Archivo eliminado definitivamente con éxito',
+              variant: 'success',
+              position: 'bottom-center'
+            });
           })
           .catch(error => {
-            console.error('Error al eliminar el archivo de forma definitiva:', error);
+            console.error(error);
+            if (error.response && error.response.status === 409) {
+              // Si el código de estado es 409 (CONFLICT), muestra un mensaje de limitación en la nube
+              VsToast.show({
+                title: 'No se puede eliminar de forma definitiva',
+                message: 'Debido a limitaciones en la nube debe realizarlo de manera manual a través de la página web del servicio.',
+                variant: 'warning',
+                position: 'bottom-center'
+              });
+            } else {
+              // Si hay otro error, muestra un mensaje genérico de error
+              VsToast.show({
+                title: 'Error al eliminar archivo de forma definitiva',
+                variant: 'error',
+                position: 'bottom-center'
+              });
+            }
           });
     },
     // Método para eliminar todos los archivos seleccionados
@@ -725,7 +774,11 @@ export default {
             this.folders = response.data;
           })
           .catch(error => {
-            console.error('Error fetching folders:', error);
+            console.error(error);
+            this.$router.push({
+              name: 'ErrorView',
+              query: {code: 500, message: 'Error al obtener las carpetas disponibles para mover los archivos'}
+            });
           });
     },
     // Método para volver atrás en la ruta para mover un archivo
@@ -802,7 +855,7 @@ export default {
       this.fileMovePath = [];
       this.showMoveSelectedOverlay = false;
     },
-    ...mapMutations(['setHasFiles']) // Establece a nivel global si hay archivos
+    ...mapMutations(['setHasFiles']), // Establece a nivel global si hay archivos
   }
 }
 </script>

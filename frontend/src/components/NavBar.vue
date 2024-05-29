@@ -53,6 +53,8 @@
              id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
             <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Profile Photo" width="40" height="40"
                  class="rounded-circle me-2">
+            <img v-else src="@/assets/default-avatar-icon.jpg" alt="Profile Photo" width="40" height="40"
+                 class="rounded-circle me-2">
           </a>
           <ul class="dropdown-menu text-small shadow dropdown-menu-end" aria-labelledby="dropdownUser2">
             <li>
@@ -91,6 +93,7 @@
 <script>
 import axios from 'axios';
 import {mapState} from "vuex";
+import VsToast from "@vuesimple/vs-toast";
 
 export default {
   data() {
@@ -139,25 +142,33 @@ export default {
 
       axios.get('/api/' + this.cloudService + '/profilePhoto')
           .then(response => {
-            // Al recibir la respuesta, asignar la URL de la foto de perfil a profilePhotoUrl
             this.profilePhotoUrl = response.data;
           })
           .catch(error => {
-            // Manejar errores de la petición
-            console.error('Error al obtener la foto de perfil:', error);
+            this.profilePhotoUrl = false;
+            console.error(error); // Mensaje del servidor
+            VsToast.show({title: 'Error al obtener la foto de perfil', variant: 'warning', position: 'bottom-center'});
           });
     },
     // Método para cerrar sesión en la nube actual
     logout() {
       // Enviar una solicitud al backend para crear una nueva carpeta
       axios.post(`/api/` + this.cloudService + `/logout`)
-          .then(response => {
-            console.log('Sesión cerrada con éxito: ', response.data);
-            window.location.reload(); // Recarga de nuevo la página
+          .then(() => {
+            // Guardar el mensaje de éxito en localStorage
+            localStorage.setItem('toastMessage', JSON.stringify({
+              title: 'Sesión cerrada con éxito',
+              variant: 'success',
+              position: 'bottom-center'
+            }));
+            window.location.href = '/filemanager/root';
           })
           .catch(error => {
-            // Manejar errores, por ejemplo, mostrar un mensaje de error
-            console.error('Error al cerrar la sesión: ', error);
+            console.error(error); // Mensaje del servidor
+            this.$router.push({
+              name: 'ErrorView',
+              query: {code: 500, message: 'Error al cerrar sesión'}
+            });
           });
     },
     // Método para abrir el overlay de ajustes de búsqueda

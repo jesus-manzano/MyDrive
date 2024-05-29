@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@popperjs/core": "^2.11.8",
+    "@vuesimple/vs-toast": "^3.0.6",
     "axios": "^1.6.8",
     "bootstrap": "^5.3.3",
     "core-js": "^3.8.3",

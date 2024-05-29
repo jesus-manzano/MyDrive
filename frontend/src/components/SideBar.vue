@@ -99,6 +99,8 @@
          id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
         <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Profile Photo" width="32" height="32"
              class="rounded-circle me-2">
+        <img v-else src="@/assets/default-avatar-icon.jpg" alt="Profile Photo" width="32" height="32"
+             class="rounded-circle me-2">
         <strong>{{ userName }}</strong>
       </a>
       <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2" style="">
@@ -170,12 +172,10 @@
         </div>
       </div>
 
-      <!-- Barra de progreso -->
-      <h6 v-show="uploading" class="mt-2">Archivos subidos:</h6>
-      <div v-if="uploading" class="progress mt-2 mb-3 d-flex justify-content-between">
-        <div class="progress-bar" role="progressbar" :style="{ width: uploadProgress + '%' }"
-             aria-valuenow="uploadProgress" aria-valuemin="0" aria-valuemax="100">{{ uploadProgress }}%
-        </div>
+      <!-- Circulo de carga -->
+      <div v-if="uploading" class="mt-3 mb-3 d-flex flex-column justify-content-center">
+        <h6 class="text-center">Subiendo archivos...</h6>
+        <div class="spinner-border ms-auto me-auto mt-2" style="width: 3rem; height: 3em;" role="status"></div>
       </div>
 
       <div class="d-flex justify-content-between align-items-center">
@@ -189,6 +189,7 @@
 <script>
 import axios from 'axios';
 import {mapState, mapMutations} from 'vuex';
+import VsToast from "@vuesimple/vs-toast";
 
 export default {
   data() {
@@ -201,7 +202,6 @@ export default {
       showCreateFolderOverlay: false,
       isDraggingUploadFile: false,
       uploading: false,
-      uploadProgress: 0,
     };
   },
   props: {
@@ -241,12 +241,12 @@ export default {
 
       axios.get('/api/' + this.cloudService + '/profilePhoto')
           .then(response => {
-            // Al recibir la respuesta, asignar la URL de la foto de perfil a profilePhotoUrl
             this.profilePhotoUrl = response.data;
           })
           .catch(error => {
-            // Manejar errores de la petición
-            console.error('Error al obtener la foto de perfil:', error);
+            this.profilePhotoUrl = false;
+            console.error(error); // Mensaje del servidor
+            VsToast.show({title: 'Error al obtener la foto de perfil', variant: 'warning', position: 'bottom-center'});
           });
     },
     // Método para obtener el nombre del usuario
@@ -269,8 +269,13 @@ export default {
             this.userName = `${firstName} ${lastName}`;
           })
           .catch(error => {
-            // Manejar errores de la petición
-            console.error('Error al obtener el nombre de usuario:', error);
+            this.userName = 'usuario';
+            console.error(error);
+            VsToast.show({
+              title: 'Error al obtener el nombre del usuario',
+              variant: 'warning',
+              position: 'bottom-center'
+            });
           });
     },
     // Método para manejar la selección de archivos
@@ -296,9 +301,6 @@ export default {
     // Método para subir archivos seleccionados al backend
     uploadFiles() {
       if (this.selectedFiles.length > 0) {
-        const totalFiles = this.selectedFiles.length;
-        let uploadedFiles = 0;
-        this.uploadProgress = 0;
         this.uploading = true;
 
         this.selectedFiles.forEach(file => {
@@ -307,25 +309,27 @@ export default {
 
           // Realizar una petición al backend para cada archivo
           axios.post(`/api/` + this.cloudService + `/uploadFile/${this.currentFolderId}`, formData)
-              .then(response => {
-                console.log(response.data);
+              .then(() => {
                 // Eliminar el archivo de la lista de archivos seleccionados si se cargó correctamente
                 this.selectedFiles = this.selectedFiles.filter(selectedFile => selectedFile !== file);
-
-                // Actualizar el progreso de la barra
-                uploadedFiles++;
-                this.uploadProgress = (uploadedFiles / totalFiles) * 100;
 
                 // Cerrar el overlay si ya no hay archivos seleccionados
                 if (this.selectedFiles.length === 0) {
                   this.uploading = false;
-                  this.uploadProgress = 0;
                   this.closeUploadFileOverlay();
+
+                  // Guardar el mensaje de éxito en localStorage
+                  localStorage.setItem('toastMessage', JSON.stringify({
+                    title: 'Archivos subidos con éxito',
+                    variant: 'success',
+                    position: 'bottom-center'
+                  }));
                   window.location.reload(); // Recarga de nuevo la página
                 }
               })
               .catch(error => {
-                console.error(`Error al subir archivo ${file.name}:`, error);
+                console.error(error);
+                VsToast.show({title: 'Error al subir archivo', variant: 'error', position: 'bottom-center'});
               });
         });
       }
@@ -334,16 +338,21 @@ export default {
     createFolder() {
       // Enviar una solicitud al backend para crear una nueva carpeta
       axios.post(`/api/` + this.cloudService + `/createFolder/` + this.currentFolderId + '?name=' + this.folderName)
-          .then(response => {
-            // Procesar la respuesta del backend, por ejemplo, mostrar un mensaje de éxito
-            console.log('Carpeta creada exitosamente:', response.data);
+          .then(() => {
             // Cerrar el overlay después de crear la carpeta
             this.closeCreateFolderOverlay();
+
+            // Guardar el mensaje de éxito en localStorage
+            localStorage.setItem('toastMessage', JSON.stringify({
+              title: 'Carpeta creada con éxito',
+              variant: 'success',
+              position: 'bottom-center'
+            }));
             window.location.reload();
           })
           .catch(error => {
-            // Manejar errores, por ejemplo, mostrar un mensaje de error
-            console.error('Error al crear la carpeta:', error);
+            console.error(error);
+            VsToast.show({title: 'Error al crear la carpeta', variant: 'error', position: 'bottom-center'});
           });
     },
     // Método para abrir el overlay para crear una carpeta
@@ -387,13 +396,21 @@ export default {
     logout() {
       // Enviar una solicitud al backend para crear una nueva carpeta
       axios.post(`/api/` + this.cloudService + `/logout`)
-          .then(response => {
-            console.log('Sesión cerrada con éxito: ', response.data);
-            window.location.reload(); // Recarga de nuevo la página
+          .then(() => {
+            // Guardar el mensaje de éxito en localStorage
+            localStorage.setItem('toastMessage', JSON.stringify({
+              title: 'Sesión cerrada con éxito',
+              variant: 'success',
+              position: 'bottom-center'
+            }));
+            window.location.href = '/filemanager/root';
           })
           .catch(error => {
-            // Manejar errores, por ejemplo, mostrar un mensaje de error
-            console.error('Error al cerrar la sesión: ', error);
+            console.error(error); // Mensaje del servidor
+            this.$router.push({
+              name: 'ErrorView',
+              query: {code: 500, message: 'Error al cerrar sesión'}
+            });
           });
     }
   }
