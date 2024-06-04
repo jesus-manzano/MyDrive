@@ -6,10 +6,9 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -23,7 +22,6 @@ import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.drive.DriveScopes;
 import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
 import org.springframework.web.context.WebApplicationContext;
@@ -37,9 +35,9 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
-@Service
+@Service("google-drive")
 @Scope(WebApplicationContext.SCOPE_SESSION)
-public class GoogleDriveService {
+public class GoogleDriveService implements CloudStorageService {
 
     @Value("${google.oauth.redirectUri}")
     private String redirectUri;

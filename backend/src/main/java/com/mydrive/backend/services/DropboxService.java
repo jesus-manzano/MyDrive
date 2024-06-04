@@ -10,6 +10,7 @@ import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.exceptions.CloudLimitationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.Scope;
@@ -27,10 +28,10 @@ import java.io.InputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-@Service
+@Service("dropbox")
 @Scope(WebApplicationContext.SCOPE_SESSION)
 @PropertySource("classpath:application-secrets.properties")
-public class DropboxService {
+public class DropboxService implements CloudStorageService {
 
     @Value("${dropbox.clientId}")
     private String clientId;
