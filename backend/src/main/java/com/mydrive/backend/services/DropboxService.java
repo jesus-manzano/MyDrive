@@ -357,29 +357,19 @@ public class DropboxService implements CloudStorageService {
     }
 
     public ResponseEntity<String> restoreFile(String fileId) {
-        try {
-            // Lanza excepción para indicar que hay limitación por parte de la api
-            throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
-        } catch (CloudLimitationException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al restaurar el archivo");
-        }
+        // Lanza excepción para indicar que hay limitación por parte de la api
+        throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
     }
 
     public ResponseEntity<String> deleteFile(String fileId) throws Exception {
-        try {
-            // Lanza excepción para indicar que hay limitación por parte de la api
-            throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
-        } catch (CloudLimitationException e) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).body(e.getMessage());
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error al eliminar de forma " +
-                    "definitiva el archivo");
-        }
+        // Lanza excepción para indicar que hay limitación por parte de la api
+        throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
     }
 
     public ResponseEntity<String> getPreviewLink(String fileId) throws Exception {
+        if (fileId.equals("null"))
+            throw new CloudLimitationException("No se puede obtener la preview del archivo indicado");
+
         // Obtener metadata del archivo
         Metadata metadata = client.files().getMetadata(fileId);
         String previewUrl = "https://www.dropbox.com/home" + metadata.getPathDisplay();
@@ -402,7 +392,7 @@ public class DropboxService implements CloudStorageService {
                     DeletedMetadata deletedMetadata = (DeletedMetadata) metadata;
                     if (deletedMetadata.getName().contains(fileName)) {
                         FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId(deletedMetadata.getPathLower());
+                        fileDTO.setId("null");
                         fileDTO.setName(deletedMetadata.getName());
                         fileDTO.setLastTimeViewed("Archivo eliminado");
                         fileDTO.setSize(0L);
