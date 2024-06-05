@@ -8,12 +8,7 @@ import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Scope;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import com.google.api.services.drive.Drive;
 import com.google.api.client.http.HttpTransport;
@@ -63,7 +58,7 @@ public class GoogleDriveService implements CloudStorageService {
                 .build();
     }
 
-    public String redirectToAuthorization() throws Exception {
+    public String redirectToAuthorization() {
         GoogleAuthorizationCodeRequestUrl url = flow.newAuthorizationUrl();
         String redirectUrl = url.setRedirectUri(redirectUri).setAccessType("offline").build();
         return redirectUrl; // Redirect to Google Drive authorization URL
@@ -77,14 +72,12 @@ public class GoogleDriveService implements CloudStorageService {
                 .setApplicationName("MyDrive").build();
     }
 
-    public ResponseEntity<Boolean> checkAuthentication() {
-        if (drive != null) return ResponseEntity.ok(true);
-        return ResponseEntity.ok(false);
+    public boolean checkAuthentication() {
+        return drive != null;
     }
 
-    public ResponseEntity<String> logout() {
+    public void logout() {
         this.drive = null;
-        return ResponseEntity.ok("Successfully logged out from Google Drive");
     }
 
     public String getProfilePhoto() throws Exception {
@@ -99,6 +92,47 @@ public class GoogleDriveService implements CloudStorageService {
         About about = drive.about().get().setFields("user").execute();
 
         return about.getUser().getDisplayName();
+    }
+
+    public List<FileDTO> getPathFolder(String folderId) throws Exception {
+        // Obtener la información del archivo con el ID del folder
+        File file = drive.files().get(folderId).setFields("id, name, parents").execute();
+        List<FileDTO> fullPath = new ArrayList<>();
+
+        // Agregamos el directorio actual
+        FileDTO currentFolder = new FileDTO();
+        currentFolder.setId(folderId);
+        currentFolder.setName(file.getName());
+        fullPath.add(0, currentFolder);
+
+        // Obtener la lista de padres del archivo
+        List<String> parents = file.getParents();
+
+        // Verificar si hay padres
+        if (parents != null && !parents.isEmpty()) {
+            String parentId = parents.get(0);
+
+            while (parentId != null) {
+                // Obtener la información del archivo padre
+                File parentFile = drive.files().get(parentId).setFields("id, name, parents").execute();
+
+                // Agregar el directorio del padre a la lista
+                FileDTO parentFolder = new FileDTO();
+                parentFolder.setId(parentId);
+                parentFolder.setName(parentFile.getName());
+                fullPath.add(0, parentFolder);
+
+                // Obtener el ID del siguiente padre
+                List<String> nextParents = parentFile.getParents();
+                if (nextParents != null && !nextParents.isEmpty()) {
+                    parentId = nextParents.get(0);
+                } else {
+                    parentId = null;
+                }
+            }
+        }
+
+        return fullPath;
     }
 
     public List<FileDTO> getFoldersInFolder(String folderId, String folderName) throws Exception {
@@ -183,6 +217,29 @@ public class GoogleDriveService implements CloudStorageService {
         return filesDTOList;
     }
 
+    public List<FileDTO> getFilesInBin(String fileName) throws Exception {
+        String query = "trashed=true and mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.shortcut'";
+
+        // Agregar filtro por nombre de archivo si se proporciona
+        if (!fileName.isEmpty()) {
+            query += " and name contains '" + fileName + "'";
+        }
+        // Realizamos la consulta para obtener todos los archivos
+        // que no son ni carpetas ni enlaces a otros archivos
+        FileList allFiles = drive.files().list().setQ(query)
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .execute();
+
+        List<FileDTO> filesDTOList = new ArrayList<>();
+
+        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
+        for (File file : allFiles.getFiles()) {
+            filesDTOList.add(new FileDTO(file));
+        }
+
+        return filesDTOList;
+    }
+
     public List<FileDTO> searchFolders(String folderName) throws Exception {
         // Realizamos la consulta para obtener todas las carpetas
         // que coinciden con este nombre
@@ -225,18 +282,44 @@ public class GoogleDriveService implements CloudStorageService {
         return filesDTOList;
     }
 
-    public ResponseEntity<String> createFolder(String folderId, String folderName) throws Exception {
+    public void createFolder(String folderId, String folderName) throws Exception {
         File folder = new File();
         folder.setName(folderName);
         folder.setMimeType("application/vnd.google-apps.folder");
         folder.setParents(Collections.singletonList(folderId));
 
         drive.files().create(folder).execute();
-
-        return ResponseEntity.ok("Folder has been created successfully");
     }
 
-    public ResponseEntity<String> moveFile(String fileId, String targetFolderId) throws Exception {
+    public void uploadFile(MultipartFile file, String folderId) throws Exception {
+        if (file.isEmpty()) {
+            throw new Exception("File is empty");
+        }
+
+        // Crear el metadata del archivo
+        File fileMetadata = new File();
+        fileMetadata.setName(file.getOriginalFilename());
+        if (folderId != null) fileMetadata.setParents(Collections.singletonList(folderId));
+
+        // Subir el archivo a Google Drive
+        drive.files().create(fileMetadata, new InputStreamContent(file.getContentType(),
+                new ByteArrayInputStream(file.getBytes()))).setFields("id").execute();
+    }
+
+    public String getPreviewLink(String fileId) {
+        return "https://drive.google.com/file/d/" + fileId + "/view";
+    }
+
+    public byte[] downloadFile(String fileId) throws Exception {
+        OutputStream outputStream = new ByteArrayOutputStream();
+        drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+
+        byte[] fileContent = ((ByteArrayOutputStream) outputStream).toByteArray();
+
+        return fileContent;
+    }
+
+    public void moveFile(String fileId, String targetFolderId) throws Exception {
         // Obtener la información del archivo para obtener el padre actual
         File file = drive.files().get(fileId)
                 .setFields("parents")
@@ -245,7 +328,7 @@ public class GoogleDriveService implements CloudStorageService {
         // Obtener los ID de los padres del archivo
         List<String> parents = file.getParents();
         if (parents == null || parents.isEmpty()) {
-            return ResponseEntity.badRequest().body("File has no parent folder");
+            throw new Exception("error moving file");
         }
 
         // Suponemos que el archivo solo tiene un padre, tomamos el primer elemento de la lista
@@ -256,148 +339,36 @@ public class GoogleDriveService implements CloudStorageService {
                 .setRemoveParents(sourceFolderId)
                 .setAddParents(targetFolderId)
                 .execute();
-
-        return ResponseEntity.ok("File has been moved successfully");
     }
 
-    public ResponseEntity<String> renameFile(String fileId, String newName) throws Exception {
+    public void renameFile(String fileId, String newName) throws Exception {
         File file = new File();
         file.setName(newName);
 
         drive.files().update(fileId, file).execute();
-
-        return ResponseEntity.ok("File has been renamed successfully");
     }
 
-    public ResponseEntity<String> uploadFile(MultipartFile file, String folderId) throws Exception {
-        if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Archivo vacío");
-        }
-
-        // Crear el metadata del archivo
-        File fileMetadata = new File();
-        fileMetadata.setName(file.getOriginalFilename());
-        if (folderId != null) fileMetadata.setParents(Collections.singletonList(folderId));
-
-        // Subir el archivo a Google Drive
-        drive.files().create(fileMetadata, new InputStreamContent(file.getContentType(), new ByteArrayInputStream(file.getBytes()))).setFields("id").execute();
-
-        // Devolver una respuesta exitosa
-        return ResponseEntity.ok("Archivo subido correctamente");
-    }
-
-    public ResponseEntity<byte[]> downloadFile(String fileId) throws Exception {
-        OutputStream outputStream = new ByteArrayOutputStream();
-        drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
-
-        byte[] fileContent = ((ByteArrayOutputStream) outputStream).toByteArray();
-
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-
-        return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
-    }
-
-    public ResponseEntity<String> throwAwayFile(String fileId) throws Exception {
+    public void throwAwayFile(String fileId) throws Exception {
         // Obtener el archivo para modificarlo y enviarlo a la papelera
         File file = new File();
         file.setTrashed(true);
 
         // Enviar solicitud para actualizar el archivo y enviarlo a la papelera
         drive.files().update(fileId, file).execute();
-
-        // Archivo enviado a la papelera exitosamente
-        return ResponseEntity.ok("Archivo enviado a la papelera exitosamente");
     }
 
-    public ResponseEntity<String> restoreFile(String fileId) throws Exception {
+    public void restoreFile(String fileId) throws Exception {
         // Obtener el archivo para modificarlo y restaurarlo de la papelera
         File file = new File();
         file.setTrashed(false);
 
         // Enviar solicitud para actualizar el archivo y restaurarlo de la papelera
         drive.files().update(fileId, file).execute();
-
-        // Archivo restaurado exitosamente
-        return ResponseEntity.ok("Archivo restaurado exitosamente");
     }
 
-    public ResponseEntity<String> deleteFile(String fileId) throws Exception {
+    public void deleteFile(String fileId) throws Exception {
         // Enviar solicitud para eliminar el archivo
         drive.files().delete(fileId).execute();
-
-        // Archivo eliminado exitosamente
-        return ResponseEntity.ok("Archivo eliminado exitosamente");
-    }
-
-    public ResponseEntity<String> getPreviewLink(String fileId) throws Exception {
-        String previewUrl = "https://drive.google.com/file/d/" + fileId + "/view";
-
-        return ResponseEntity.ok(previewUrl);
-    }
-
-    public List<FileDTO> getFilesInBin(String fileName) throws Exception {
-        String query = "trashed=true and mimeType != 'application/vnd.google-apps.folder' and mimeType != 'application/vnd.google-apps.shortcut'";
-
-        // Agregar filtro por nombre de archivo si se proporciona
-        if (!fileName.isEmpty()) {
-            query += " and name contains '" + fileName + "'";
-        }
-        // Realizamos la consulta para obtener todos los archivos
-        // que no son ni carpetas ni enlaces a otros archivos
-        FileList allFiles = drive.files().list().setQ(query)
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
-                .execute();
-
-        List<FileDTO> filesDTOList = new ArrayList<>();
-
-        // Modificamos los parámetros que deseemos antes de convertirlo en DTO
-        for (File file : allFiles.getFiles()) {
-            filesDTOList.add(new FileDTO(file));
-        }
-
-        return filesDTOList;
-    }
-
-    public List<FileDTO> getPathFolder(String folderId) throws Exception {
-        // Obtener la información del archivo con el ID del folder
-        File file = drive.files().get(folderId).setFields("id, name, parents").execute();
-        List<FileDTO> fullPath = new ArrayList<>();
-
-        // Agregamos el directorio actual
-        FileDTO currentFolder = new FileDTO();
-        currentFolder.setId(folderId);
-        currentFolder.setName(file.getName());
-        fullPath.add(0, currentFolder);
-
-        // Obtener la lista de padres del archivo
-        List<String> parents = file.getParents();
-
-        // Verificar si hay padres
-        if (parents != null && !parents.isEmpty()) {
-            String parentId = parents.get(0);
-
-            while (parentId != null) {
-                // Obtener la información del archivo padre
-                File parentFile = drive.files().get(parentId).setFields("id, name, parents").execute();
-
-                // Agregar el directorio del padre a la lista
-                FileDTO parentFolder = new FileDTO();
-                parentFolder.setId(parentId);
-                parentFolder.setName(parentFile.getName());
-                fullPath.add(0, parentFolder);
-
-                // Obtener el ID del siguiente padre
-                List<String> nextParents = parentFile.getParents();
-                if (nextParents != null && !nextParents.isEmpty()) {
-                    parentId = nextParents.get(0);
-                } else {
-                    parentId = null;
-                }
-            }
-        }
-
-        return fullPath;
     }
 }
 

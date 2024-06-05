@@ -6,10 +6,10 @@ import com.mydrive.backend.services.CloudStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
@@ -17,7 +17,6 @@ import org.springframework.web.servlet.view.RedirectView;
 import java.util.List;
 
 @RestController
-@Scope(WebApplicationContext.SCOPE_REQUEST)
 @RequestMapping("/api/{provider}")
 public class CloudStorageController {
 
@@ -47,12 +46,13 @@ public class CloudStorageController {
 
     @GetMapping("/oauth/check")
     public ResponseEntity<Boolean> checkAuthentication() throws Exception {
-        return cloudService.checkAuthentication();
+        return ResponseEntity.ok(cloudService.checkAuthentication());
     }
 
     @PostMapping("/logout")
     public ResponseEntity<String> logout() throws Exception {
-        return cloudService.logout();
+        cloudService.logout();
+        return ResponseEntity.ok("Logout successfully");
     }
 
     @GetMapping("/profilePhoto")
@@ -65,6 +65,12 @@ public class CloudStorageController {
     public ResponseEntity<String> getUserName() throws Exception {
         String userName = cloudService.getUserName();
         return ResponseEntity.ok(userName);
+    }
+
+    @GetMapping("/path/{folderId}")
+    public ResponseEntity<List<FileDTO>> getPathFolder(@PathVariable String folderId) throws Exception {
+        List<FileDTO> fullPath = cloudService.getPathFolder(folderId);
+        return ResponseEntity.ok(fullPath);
     }
 
     @GetMapping("/folders/{folderId}")
@@ -109,55 +115,60 @@ public class CloudStorageController {
     @PostMapping("/createFolder/{folderId}")
     public ResponseEntity<String> createFolder(@PathVariable String folderId,
                                                @RequestParam String name) throws Exception {
-        return cloudService.createFolder(folderId, name);
-    }
-
-    @PutMapping("/moveFile/{fileId}")
-    public ResponseEntity<String> moveFile(@PathVariable String fileId,
-                                           @RequestParam String folderId) throws Exception {
-        return cloudService.moveFile(fileId, folderId);
-    }
-
-    @PutMapping("/renameFile/{fileId}")
-    public ResponseEntity<String> renameFile(@PathVariable String fileId,
-                                             @RequestParam String name) throws Exception {
-        return cloudService.renameFile(fileId, name);
+        cloudService.createFolder(folderId, name);
+        return ResponseEntity.ok("Folder has been created successfully");
     }
 
     @PostMapping("/uploadFile/{folderId}")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file,
                                              @PathVariable String folderId) throws Exception {
-        return cloudService.uploadFile(file, folderId);
-    }
-
-    @GetMapping("/download/{fileId}")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) throws Exception {
-        return cloudService.downloadFile(fileId);
-    }
-
-    @PutMapping("/throwAway/{fileId}")
-    public ResponseEntity<String> throwAwayFile(@PathVariable String fileId) throws Exception {
-        return cloudService.throwAwayFile(fileId);
-    }
-
-    @PutMapping("/restore/{fileId}")
-    public ResponseEntity<String> restoreFile(@PathVariable String fileId) throws Exception {
-        return cloudService.restoreFile(fileId);
-    }
-
-    @DeleteMapping("/delete/{fileId}")
-    public ResponseEntity<String> deleteFile(@PathVariable String fileId) throws Exception {
-        return cloudService.deleteFile(fileId);
+        cloudService.uploadFile(file, folderId);
+        return ResponseEntity.ok("File has been upload successfully");
     }
 
     @GetMapping("/preview-link/{fileId}")
     public ResponseEntity<String> getPreviewUrl(@PathVariable String fileId) throws Exception {
-        return cloudService.getPreviewLink(fileId);
+        return ResponseEntity.ok(cloudService.getPreviewLink(fileId));
     }
 
-    @GetMapping("/path/{folderId}")
-    public ResponseEntity<List<FileDTO>> getPathFolder(@PathVariable String folderId) throws Exception {
-        List<FileDTO> fullPath = cloudService.getPathFolder(folderId);
-        return ResponseEntity.ok(fullPath);
+    @GetMapping("/download/{fileId}")
+    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        byte[] fileContent = cloudService.downloadFile(fileId);
+
+        return ResponseEntity.ok().headers(headers).body(fileContent);
+    }
+
+    @PutMapping("/moveFile/{fileId}")
+    public ResponseEntity<String> moveFile(@PathVariable String fileId,
+                                           @RequestParam String folderId) throws Exception {
+        cloudService.moveFile(fileId, folderId);
+        return ResponseEntity.ok("File has been moved successfully");
+    }
+
+    @PutMapping("/renameFile/{fileId}")
+    public ResponseEntity<String> renameFile(@PathVariable String fileId,
+                                             @RequestParam String name) throws Exception {
+        cloudService.renameFile(fileId, name);
+        return ResponseEntity.ok("File has been renamed successfully");
+    }
+
+    @PutMapping("/throwAway/{fileId}")
+    public ResponseEntity<String> throwAwayFile(@PathVariable String fileId) throws Exception {
+        cloudService.throwAwayFile(fileId);
+        return ResponseEntity.ok("File has been thrown into the trash successfully");
+    }
+
+    @PutMapping("/restore/{fileId}")
+    public ResponseEntity<String> restoreFile(@PathVariable String fileId) throws Exception {
+        cloudService.restoreFile(fileId);
+        return ResponseEntity.ok("File has been restored successfully");
+    }
+
+    @DeleteMapping("/delete/{fileId}")
+    public ResponseEntity<String> deleteFile(@PathVariable String fileId) throws Exception {
+        cloudService.deleteFile(fileId);
+        return ResponseEntity.ok("File has been deleted successfully");
     }
 }

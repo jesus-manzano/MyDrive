@@ -10,7 +10,6 @@ import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.exceptions.CloudLimitationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.context.annotation.Scope;
@@ -85,14 +84,12 @@ public class DropboxService implements CloudStorageService {
         }
     }
 
-    public ResponseEntity<Boolean> checkAuthentication() {
-        if (client != null) return ResponseEntity.ok(true);
-        return ResponseEntity.ok(false);
+    public boolean checkAuthentication() {
+        return client != null;
     }
 
-    public ResponseEntity<String> logout() {
+    public void logout() {
         this.client = null;
-        return ResponseEntity.ok("Successfully logged out from Google Drive");
     }
 
     public String getProfilePhoto() throws Exception {
@@ -107,6 +104,52 @@ public class DropboxService implements CloudStorageService {
         FullAccount account = client.users().getCurrentAccount();
 
         return account.getName().getDisplayName();
+    }
+
+    public List<FileDTO> getPathFolder(String folderId) throws Exception {
+        List<FileDTO> fullPath = new ArrayList<>();
+
+        // Añadir la carpeta raíz
+        FileDTO rootFolderDTO = new FileDTO();
+        rootFolderDTO.setId("");  // ID vacío para la raíz
+        rootFolderDTO.setName("root");  // Nombre de la carpeta raíz
+        fullPath.add(rootFolderDTO);
+
+        if (folderId.equals("root")) return fullPath;
+
+        // Obtener metadata de la carpeta
+        Metadata metadata = client.files().getMetadata(folderId);
+        String pathDisplay = metadata.getPathDisplay();
+
+        // Eliminar la primera barra '/' de la cadena
+        if (pathDisplay.startsWith("/")) {
+            pathDisplay = pathDisplay.substring(1);
+        }
+
+        // Dividir la ruta en segmentos
+        List<String> segments = Arrays.asList(pathDisplay.split("/"));
+        String currentFolderId = "";
+
+        // Crear un FileDTO para cada carpeta en la ruta
+        StringBuilder currentPath = new StringBuilder();
+        for (String segment : segments) {
+            // Agregar segmento al path actual
+            currentPath.append("/").append(segment);
+
+            // Obtener el ID del segmento actual
+            String segmentId = getFolderIdByName(currentFolderId, segment);
+
+            // Crear un FileDTO para la carpeta actual
+            FileDTO folderDTO = new FileDTO();
+            folderDTO.setId(segmentId);
+            folderDTO.setName(segment);
+            fullPath.add(folderDTO);
+
+            // Actualizar el ID actual para el próximo segmento
+            currentFolderId = segmentId;
+        }
+
+        return fullPath;
     }
 
     public List<FileDTO> getFoldersInFolder(String folderId, String folderName) throws Exception {
@@ -209,6 +252,37 @@ public class DropboxService implements CloudStorageService {
         return filesDTOList;
     }
 
+    public List<FileDTO> getFilesInBin(String fileName) throws Exception {
+        ListFolderResult result = client.files().listFolderBuilder("")
+                .withIncludeDeleted(true)
+                .withIncludeHasExplicitSharedMembers(false)
+                .withRecursive(true)
+                .start();
+
+        List<FileDTO> filesDTOList = new ArrayList<>();
+
+        while (true) {
+            for (Metadata metadata : result.getEntries()) {
+                if (metadata instanceof DeletedMetadata) {
+                    DeletedMetadata deletedMetadata = (DeletedMetadata) metadata;
+                    if (deletedMetadata.getName().contains(fileName)) {
+                        FileDTO fileDTO = new FileDTO();
+                        fileDTO.setId("null");
+                        fileDTO.setName(deletedMetadata.getName());
+                        fileDTO.setLastTimeViewed("Archivo eliminado");
+                        fileDTO.setSize(0L);
+                        filesDTOList.add(fileDTO);
+                    }
+                }
+            }
+
+            if (!result.getHasMore()) break;
+            result = client.files().listFolderContinue(result.getCursor());
+        }
+
+        return filesDTOList;
+    }
+
     public List<FileDTO> searchFolders(String folderName) throws Exception {
         ListFolderResult result = client.files().listFolderBuilder("")
                 .withRecursive(true)
@@ -267,46 +341,17 @@ public class DropboxService implements CloudStorageService {
         return filesDTOList;
     }
 
-    public ResponseEntity<String> createFolder(String folderId, String folderName) throws Exception {
+    public void createFolder(String folderId, String folderName) throws Exception {
         // Construir la ruta completa de la nueva carpeta dentro de la carpeta padre
         String folderPath = getPathMetadata(folderId);
         String fullPath = folderPath + "/" + folderName;
 
         client.files().createFolderV2(fullPath);
-
-        return ResponseEntity.ok("Folder has been created successfully");
     }
 
-    public ResponseEntity<String> moveFile(String fileId, String targetFolderId) throws Exception {
-        // Mover el archivo o carpeta a la carpeta de destino
-        String targetFolderPath = getPathMetadata(targetFolderId);
-        Metadata file = client.files().getMetadata(fileId);
-
-        client.files().moveV2(file.getPathDisplay(), targetFolderPath + "/" + file.getName());
-
-        return ResponseEntity.ok("File has been moved successfully");
-    }
-
-    public ResponseEntity<String> renameFile(String fileId, String newName) throws Exception {
-        // Mover el archivo a la misma carpeta actual pero cambiando el nombre
-        Metadata fileMetadata = client.files().getMetadata(fileId);
-
-        // Obtener la ruta de la carpeta contenedora del archivo
-        String parentFolderPath = fileMetadata.getPathDisplay()
-                .substring(0, fileMetadata.getPathDisplay().lastIndexOf("/"));
-
-        // Construir la nueva ruta con el nuevo nombre
-        String newFilePath = parentFolderPath + "/" + newName;
-
-        // Realizar la operación de mover el archivo a la nueva ruta
-        client.files().moveV2(fileMetadata.getPathDisplay(), newFilePath);
-
-        return ResponseEntity.ok("File has been renamed successfully");
-    }
-
-    public ResponseEntity<String> uploadFile(MultipartFile file, String folderId) throws Exception {
+    public void uploadFile(MultipartFile file, String folderId) throws Exception {
         if (file.isEmpty()) {
-            return ResponseEntity.badRequest().body("Archivo vacío");
+            throw new Exception("File is empty");
         }
 
         // Preparar el nombre y la ruta del archivo en Dropbox
@@ -322,11 +367,18 @@ public class DropboxService implements CloudStorageService {
                 .uploadAndFinish(fileInputStream);
 
         fileInputStream.close();
-        // Devolver una respuesta exitosa
-        return ResponseEntity.ok("Archivo subido correctamente");
     }
 
-    public ResponseEntity<byte[]> downloadFile(String fileId) throws Exception {
+    public String getPreviewLink(String fileId) throws Exception {
+        if (fileId.equals("null"))
+            throw new CloudLimitationException("No se puede obtener la preview del archivo indicado");
+
+        // Obtener metadata del archivo
+        Metadata metadata = client.files().getMetadata(fileId);
+        return "https://www.dropbox.com/home" + metadata.getPathDisplay();
+    }
+
+    public byte[] downloadFile(String fileId) throws Exception {
         // Crear un OutputStream para almacenar el contenido del archivo
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
@@ -337,121 +389,45 @@ public class DropboxService implements CloudStorageService {
         // Obtener el contenido del archivo como un array de bytes
         byte[] fileContent = outputStream.toByteArray();
 
-        // Configurar las cabeceras de la respuesta
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
-        headers.setContentDispositionFormData("attachment", metadata.getName());
-
-        // Devolver la respuesta con el contenido del archivo
-        return ResponseEntity.ok()
-                .headers(headers)
-                .body(fileContent);
+        return fileContent;
     }
 
-    public ResponseEntity<String> throwAwayFile(String fileId) throws Exception {
+    public void moveFile(String fileId, String targetFolderId) throws Exception {
+        // Mover el archivo o carpeta a la carpeta de destino
+        String targetFolderPath = getPathMetadata(targetFolderId);
+        Metadata file = client.files().getMetadata(fileId);
+
+        client.files().moveV2(file.getPathDisplay(), targetFolderPath + "/" + file.getName());
+    }
+
+    public void renameFile(String fileId, String newName) throws Exception {
+        // Mover el archivo a la misma carpeta actual pero cambiando el nombre
+        Metadata fileMetadata = client.files().getMetadata(fileId);
+
+        // Obtener la ruta de la carpeta contenedora del archivo
+        String parentFolderPath = fileMetadata.getPathDisplay()
+                .substring(0, fileMetadata.getPathDisplay().lastIndexOf("/"));
+
+        // Construir la nueva ruta con el nuevo nombre
+        String newFilePath = parentFolderPath + "/" + newName;
+
+        // Realizar la operación de mover el archivo a la nueva ruta
+        client.files().moveV2(fileMetadata.getPathDisplay(), newFilePath);
+    }
+
+    public void throwAwayFile(String fileId) throws Exception {
         // Enviar solicitud para eliminar el archivo
         client.files().deleteV2(fileId);
-
-        // Archivo eliminado exitosamente
-        return ResponseEntity.ok("Archivo enviado a la papelera exitosamente");
     }
 
-    public ResponseEntity<String> restoreFile(String fileId) {
+    public void restoreFile(String fileId) {
         // Lanza excepción para indicar que hay limitación por parte de la api
         throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
     }
 
-    public ResponseEntity<String> deleteFile(String fileId) throws Exception {
+    public void deleteFile(String fileId) {
         // Lanza excepción para indicar que hay limitación por parte de la api
         throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
-    }
-
-    public ResponseEntity<String> getPreviewLink(String fileId) throws Exception {
-        if (fileId.equals("null"))
-            throw new CloudLimitationException("No se puede obtener la preview del archivo indicado");
-
-        // Obtener metadata del archivo
-        Metadata metadata = client.files().getMetadata(fileId);
-        String previewUrl = "https://www.dropbox.com/home" + metadata.getPathDisplay();
-
-        return ResponseEntity.ok(previewUrl);
-    }
-
-    public List<FileDTO> getFilesInBin(String fileName) throws Exception {
-        ListFolderResult result = client.files().listFolderBuilder("")
-                .withIncludeDeleted(true)
-                .withIncludeHasExplicitSharedMembers(false)
-                .withRecursive(true)
-                .start();
-
-        List<FileDTO> filesDTOList = new ArrayList<>();
-
-        while (true) {
-            for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof DeletedMetadata) {
-                    DeletedMetadata deletedMetadata = (DeletedMetadata) metadata;
-                    if (deletedMetadata.getName().contains(fileName)) {
-                        FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId("null");
-                        fileDTO.setName(deletedMetadata.getName());
-                        fileDTO.setLastTimeViewed("Archivo eliminado");
-                        fileDTO.setSize(0L);
-                        filesDTOList.add(fileDTO);
-                    }
-                }
-            }
-
-            if (!result.getHasMore()) break;
-            result = client.files().listFolderContinue(result.getCursor());
-        }
-
-        return filesDTOList;
-    }
-
-    public List<FileDTO> getPathFolder(String folderId) throws Exception {
-        List<FileDTO> fullPath = new ArrayList<>();
-
-        // Añadir la carpeta raíz
-        FileDTO rootFolderDTO = new FileDTO();
-        rootFolderDTO.setId("");  // ID vacío para la raíz
-        rootFolderDTO.setName("root");  // Nombre de la carpeta raíz
-        fullPath.add(rootFolderDTO);
-
-        if (folderId.equals("root")) return fullPath;
-
-        // Obtener metadata de la carpeta
-        Metadata metadata = client.files().getMetadata(folderId);
-        String pathDisplay = metadata.getPathDisplay();
-
-        // Eliminar la primera barra '/' de la cadena
-        if (pathDisplay.startsWith("/")) {
-            pathDisplay = pathDisplay.substring(1);
-        }
-
-        // Dividir la ruta en segmentos
-        List<String> segments = Arrays.asList(pathDisplay.split("/"));
-        String currentFolderId = "";
-
-        // Crear un FileDTO para cada carpeta en la ruta
-        StringBuilder currentPath = new StringBuilder();
-        for (String segment : segments) {
-            // Agregar segmento al path actual
-            currentPath.append("/").append(segment);
-
-            // Obtener el ID del segmento actual
-            String segmentId = getFolderIdByName(currentFolderId, segment);
-
-            // Crear un FileDTO para la carpeta actual
-            FileDTO folderDTO = new FileDTO();
-            folderDTO.setId(segmentId);
-            folderDTO.setName(segment);
-            fullPath.add(folderDTO);
-
-            // Actualizar el ID actual para el próximo segmento
-            currentFolderId = segmentId;
-        }
-
-        return fullPath;
     }
 
     private String formatToISO8601(Date date) {

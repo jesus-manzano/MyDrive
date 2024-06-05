@@ -15,6 +15,5 @@ public class CloudStorageServiceFactory {
 
     public CloudStorageService getCloudService(String cloudService) {
         return beanFactory.getBean(cloudService, CloudStorageService.class);
-
     }
 }

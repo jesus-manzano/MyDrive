@@ -1,7 +1,6 @@
 package com.mydrive.backend.services;
 
 import com.mydrive.backend.dtos.FileDTO;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
@@ -11,13 +10,15 @@ public interface CloudStorageService {
 
     void authenticateUser(String code) throws Exception;
 
-    ResponseEntity<Boolean> checkAuthentication() throws Exception;
+    boolean checkAuthentication() throws Exception;
 
-    ResponseEntity<String> logout() throws Exception;
+    void logout() throws Exception;
 
     String getProfilePhoto() throws Exception;
 
     String getUserName() throws Exception;
+
+    List<FileDTO> getPathFolder(String folderId) throws Exception;
 
     List<FileDTO> getFoldersInFolder(String folderId, String folderName) throws Exception;
 
@@ -31,23 +32,21 @@ public interface CloudStorageService {
 
     List<FileDTO> searchFiles(String fileName) throws Exception;
 
-    ResponseEntity<String> createFolder(String folderId, String folderName) throws Exception;
+    void createFolder(String folderId, String folderName) throws Exception;
 
-    ResponseEntity<String> moveFile(String fileId, String targetFolderId) throws Exception;
+    void uploadFile(MultipartFile file, String folderId) throws Exception;
 
-    ResponseEntity<String> renameFile(String fileId, String newName) throws Exception;
+    String getPreviewLink(String fileId) throws Exception;
 
-    ResponseEntity<String> uploadFile(MultipartFile file, String folderId) throws Exception;
+    byte[] downloadFile(String fileId) throws Exception;
 
-    ResponseEntity<byte[]> downloadFile(String fileId) throws Exception;
+    void moveFile(String fileId, String targetFolderId) throws Exception;
 
-    ResponseEntity<String> throwAwayFile(String fileId) throws Exception;
+    void renameFile(String fileId, String newName) throws Exception;
 
-    ResponseEntity<String> restoreFile(String fileId) throws Exception;
+    void throwAwayFile(String fileId) throws Exception;
 
-    ResponseEntity<String> deleteFile(String fileId) throws Exception;
+    void restoreFile(String fileId) throws Exception;
 
-    ResponseEntity<String> getPreviewLink(String fileId) throws Exception;
-
-    List<FileDTO> getPathFolder(String folderId) throws Exception;
+    void deleteFile(String fileId) throws Exception;
 }
