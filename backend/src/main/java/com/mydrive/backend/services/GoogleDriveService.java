@@ -154,7 +154,7 @@ public class GoogleDriveService implements CloudStorageService {
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File folder : allFolders.getFiles()) {
             folder.setSize(0L);
-            foldersDTOList.add(new FileDTO(folder));
+            foldersDTOList.add(convertToFileDTO(folder));
         }
 
         return foldersDTOList;
@@ -179,7 +179,7 @@ public class GoogleDriveService implements CloudStorageService {
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File file : allFiles.getFiles()) {
-            filesDTOList.add(new FileDTO(file));
+            filesDTOList.add(convertToFileDTO(file));
         }
 
         return filesDTOList;
@@ -211,7 +211,7 @@ public class GoogleDriveService implements CloudStorageService {
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File file : allFiles.getFiles()) {
-            filesDTOList.add(new FileDTO(file));
+            filesDTOList.add(convertToFileDTO(file));
         }
 
         return filesDTOList;
@@ -234,7 +234,7 @@ public class GoogleDriveService implements CloudStorageService {
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File file : allFiles.getFiles()) {
-            filesDTOList.add(new FileDTO(file));
+            filesDTOList.add(convertToFileDTO(file));
         }
 
         return filesDTOList;
@@ -255,7 +255,7 @@ public class GoogleDriveService implements CloudStorageService {
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File folder : allFiles.getFiles()) {
             folder.setSize(0L);
-            foldersDTOList.add(new FileDTO(folder));
+            foldersDTOList.add(convertToFileDTO(folder));
         }
 
         return foldersDTOList;
@@ -276,7 +276,7 @@ public class GoogleDriveService implements CloudStorageService {
 
         // Modificamos los parámetros que deseemos antes de convertirlo en DTO
         for (File file : allFiles.getFiles()) {
-            filesDTOList.add(new FileDTO(file));
+            filesDTOList.add(convertToFileDTO(file));
         }
 
         return filesDTOList;
@@ -369,6 +369,24 @@ public class GoogleDriveService implements CloudStorageService {
     public void deleteFile(String fileId) throws Exception {
         // Enviar solicitud para eliminar el archivo
         drive.files().delete(fileId).execute();
+    }
+
+    private String mostRecentLastTimeViewed(File file) {
+        if (file.getViewedByMeTime() != null)
+            return file.getViewedByMeTime().toString();
+        if (file.getModifiedByMeTime() != null)
+            file.getModifiedByMeTime().toString();
+        return file.getCreatedTime().toString();
+    }
+
+    private FileDTO convertToFileDTO(File file) {
+        FileDTO fileDTO = new FileDTO(
+                file.getId(),
+                file.getName(),
+                file.getThumbnailLink(),
+                mostRecentLastTimeViewed(file),
+                file.getSize());
+        return fileDTO;
     }
 }
 

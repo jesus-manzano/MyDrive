@@ -1,7 +1,5 @@
 package com.mydrive.backend.dtos;
 
-import com.google.api.services.drive.model.File;
-
 public class FileDTO {
 
     private String id;
@@ -10,22 +8,15 @@ public class FileDTO {
     private String lastTimeViewed;
     private Long size;
 
-    public FileDTO() {}
-
-    public FileDTO(File file) {
-        this.id = file.getId();
-        this.name = file.getName();
-        this.thumbnailLink = file.getThumbnailLink();
-        this.lastTimeViewed = mostRecentLastTimeViewed(file);
-        this.size = file.getSize();
+    public FileDTO() {
     }
 
-    private String mostRecentLastTimeViewed(File file) {
-        if (file.getViewedByMeTime() != null)
-            return file.getViewedByMeTime().toString();
-        if (file.getModifiedByMeTime() != null)
-            file.getModifiedByMeTime().toString();
-        return file.getCreatedTime().toString();
+    public FileDTO(String id, String name, String thumbnailLink, String lastTimeViewed, Long size) {
+        this.id = id;
+        this.name = name;
+        this.thumbnailLink = thumbnailLink;
+        this.lastTimeViewed = lastTimeViewed;
+        this.size = size;
     }
 
     public String getId() {

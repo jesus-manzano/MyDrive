@@ -159,20 +159,12 @@ public class DropboxService implements CloudStorageService {
 
         List<FileDTO> foldersDTOList = new ArrayList<>();
 
-        // Modificar los parámetros que desees antes de convertirlos en DTO
         while (true) {
             for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof FolderMetadata) {
+                if (metadata instanceof FolderMetadata && metadata.getName().contains(folderName)) {
                     FolderMetadata folderMetadata = (FolderMetadata) metadata;
-                    // Verificar si el nombre de la carpeta contiene folderName
-                    if (folderMetadata.getName().contains(folderName)) {
-                        FileDTO folderDTO = new FileDTO();
-                        folderDTO.setId(folderMetadata.getId());
-                        folderDTO.setName(folderMetadata.getName());
-                        folderDTO.setLastTimeViewed("");
-                        folderDTO.setSize(0L);
-                        foldersDTOList.add(folderDTO);
-                    }
+                    FileDTO folderDTO = convertToFileDTO(folderMetadata);
+                    foldersDTOList.add(folderDTO);
                 }
             }
 
@@ -191,20 +183,12 @@ public class DropboxService implements CloudStorageService {
 
         List<FileDTO> filesDTOList = new ArrayList<>();
 
-        // Modificar los parámetros que desees antes de convertirlos en DTO
         while (true) {
             for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof FileMetadata) {
+                if (metadata instanceof FileMetadata && metadata.getName().contains(fileName)) {
                     FileMetadata fileMetadata = (FileMetadata) metadata;
-                    // Verificar si el nombre del archivo contiene fileName
-                    if (fileMetadata.getName().contains(fileName)) {
-                        FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId(fileMetadata.getId());
-                        fileDTO.setName(fileMetadata.getName());
-                        fileDTO.setLastTimeViewed(formatToISO8601(fileMetadata.getServerModified()));
-                        fileDTO.setSize(fileMetadata.getSize());
-                        filesDTOList.add(fileDTO);
-                    }
+                    FileDTO fileDTO = convertToFileDTO(fileMetadata);
+                    filesDTOList.add(fileDTO);
                 }
             }
 
@@ -231,15 +215,10 @@ public class DropboxService implements CloudStorageService {
         // Recorremos todas las páginas de la paginación para obtener una lista con todos los archivos
         while (true) {
             for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof FileMetadata) {
+                if (metadata instanceof FileMetadata && metadata.getName().contains(fileName)) {
                     FileMetadata fileMetadata = (FileMetadata) metadata;
-                    if (fileMetadata.getServerModified().after(parsedDate) &&
-                            fileMetadata.getName().contains(fileName)) {
-                        FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId(fileMetadata.getId());
-                        fileDTO.setName(fileMetadata.getName());
-                        fileDTO.setLastTimeViewed(formatToISO8601(fileMetadata.getServerModified()));
-                        fileDTO.setSize(fileMetadata.getSize());
+                    if (fileMetadata.getServerModified().after(parsedDate)) {
+                        FileDTO fileDTO = convertToFileDTO(fileMetadata);
                         filesDTOList.add(fileDTO);
                     }
                 }
@@ -263,16 +242,10 @@ public class DropboxService implements CloudStorageService {
 
         while (true) {
             for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof DeletedMetadata) {
+                if (metadata instanceof DeletedMetadata && metadata.getName().contains(fileName)) {
                     DeletedMetadata deletedMetadata = (DeletedMetadata) metadata;
-                    if (deletedMetadata.getName().contains(fileName)) {
-                        FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId("null");
-                        fileDTO.setName(deletedMetadata.getName());
-                        fileDTO.setLastTimeViewed("Archivo eliminado");
-                        fileDTO.setSize(0L);
-                        filesDTOList.add(fileDTO);
-                    }
+                    FileDTO fileDTO = convertToFileDTO(deletedMetadata);
+                    filesDTOList.add(fileDTO);
                 }
             }
 
@@ -292,16 +265,10 @@ public class DropboxService implements CloudStorageService {
 
         while (true) {
             for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof FolderMetadata) {
+                if (metadata instanceof FolderMetadata && metadata.getName().contains(folderName)) {
                     FolderMetadata folderMetadata = (FolderMetadata) metadata;
-                    if (folderMetadata.getName().toLowerCase().contains(folderName.toLowerCase())) {
-                        FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId(folderMetadata.getId());
-                        fileDTO.setName(folderMetadata.getName());
-                        fileDTO.setLastTimeViewed("");
-                        fileDTO.setSize(0L);
-                        foldersDTOList.add(fileDTO);
-                    }
+                    FileDTO folderDTO = convertToFileDTO(folderMetadata);
+                    foldersDTOList.add(folderDTO);
                 }
             }
 
@@ -321,16 +288,10 @@ public class DropboxService implements CloudStorageService {
 
         while (true) {
             for (Metadata metadata : result.getEntries()) {
-                if (metadata instanceof FileMetadata) {
+                if (metadata instanceof FileMetadata && metadata.getName().contains(fileName)) {
                     FileMetadata fileMetadata = (FileMetadata) metadata;
-                    if (fileMetadata.getName().toLowerCase().contains(fileName.toLowerCase())) {
-                        FileDTO fileDTO = new FileDTO();
-                        fileDTO.setId(fileMetadata.getId());
-                        fileDTO.setName(fileMetadata.getName());
-                        fileDTO.setLastTimeViewed(formatToISO8601(fileMetadata.getServerModified()));
-                        fileDTO.setSize(fileMetadata.getSize());
-                        filesDTOList.add(fileDTO);
-                    }
+                    FileDTO fileDTO = convertToFileDTO(fileMetadata);
+                    filesDTOList.add(fileDTO);
                 }
             }
 
@@ -428,6 +389,33 @@ public class DropboxService implements CloudStorageService {
     public void deleteFile(String fileId) {
         // Lanza excepción para indicar que hay limitación por parte de la api
         throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
+    }
+
+    private FileDTO convertToFileDTO(FolderMetadata folderMetadata) {
+        FileDTO fileDTO = new FileDTO();
+        fileDTO.setId(folderMetadata.getId());
+        fileDTO.setName(folderMetadata.getName());
+        fileDTO.setLastTimeViewed("");
+        fileDTO.setSize(0L);
+        return fileDTO;
+    }
+
+    private FileDTO convertToFileDTO(FileMetadata fileMetadata) {
+        FileDTO fileDTO = new FileDTO();
+        fileDTO.setId(fileMetadata.getId());
+        fileDTO.setName(fileMetadata.getName());
+        fileDTO.setLastTimeViewed(formatToISO8601(fileMetadata.getServerModified()));
+        fileDTO.setSize(fileMetadata.getSize());
+        return fileDTO;
+    }
+
+    private FileDTO convertToFileDTO(DeletedMetadata deletedMetadata) {
+        FileDTO fileDTO = new FileDTO();
+        fileDTO.setId("null");
+        fileDTO.setName(deletedMetadata.getName());
+        fileDTO.setLastTimeViewed("Archivo eliminado");
+        fileDTO.setSize(0L);
+        return fileDTO;
     }
 
     private String formatToISO8601(Date date) {
