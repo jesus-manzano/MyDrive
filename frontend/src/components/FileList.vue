@@ -294,6 +294,25 @@
           </div>
         </div>
       </div>
+      <hr class="my-2">
+      <span class="text-center fs-4">Nubes disponibles</span>
+      <div class="btn-group my-3" role="group" aria-label="Basic radio toggle button group">
+        <input type="radio" class="btn-check">
+        <label class="btn" :class="{ active: moveCloudService === 'google-drive',
+               'btn-outline-secondary': !isAuthenticated['google-drive'],
+               'btn-outline-primary': isAuthenticated['google-drive'] }"
+               @click="selectMoveCloudService('google-drive')">
+          Google Drive
+        </label>
+
+        <input type="radio" class="btn-check">
+        <label class="btn" :class="{ active: moveCloudService === 'dropbox',
+               'btn-outline-secondary': !isAuthenticated['dropbox'],
+               'btn-outline-primary': isAuthenticated['dropbox'] }"
+               @click="selectMoveCloudService('dropbox')">
+          Dropbox
+        </label>
+      </div>
       <div class="d-flex justify-content-between align-items-center">
         <button class="btn btn-danger" @click="closeMoveFileOverlay">Cancelar</button>
         <button class="btn btn-success" @click="moveFile(this.fileMovePath[this.fileMovePath.length - 1].id)">
@@ -351,6 +370,25 @@
           </div>
         </div>
       </div>
+      <hr class="my-2">
+      <span class="text-center fs-4">Nubes disponibles</span>
+      <div class="btn-group my-3" role="group" aria-label="Basic radio toggle button group">
+        <input type="radio" class="btn-check">
+        <label class="btn" :class="{ active: moveCloudService === 'google-drive',
+               'btn-outline-secondary': !isAuthenticated['google-drive'],
+               'btn-outline-primary': isAuthenticated['google-drive'] }"
+               @click="selectMoveCloudService('google-drive')">
+          Google Drive
+        </label>
+
+        <input type="radio" class="btn-check">
+        <label class="btn" :class="{ active: moveCloudService === 'dropbox',
+               'btn-outline-secondary': !isAuthenticated['dropbox'],
+               'btn-outline-primary': isAuthenticated['dropbox'] }"
+               @click="selectMoveCloudService('dropbox')">
+          Dropbox
+        </label>
+      </div>
       <div class="d-flex justify-content-between align-items-center">
         <button class="btn btn-danger" @click="closeMoveSelectedOverlay">Cancelar</button>
         <button class="btn btn-success" @click="moveAllSelected(this.fileMovePath[this.fileMovePath.length - 1].id)">
@@ -378,7 +416,8 @@ export default {
       folders: [],
       fileMovePath: [],
       selectionMode: false,
-      showMoveSelectedOverlay: false
+      showMoveSelectedOverlay: false,
+      moveCloudService: ''
     };
   },
   props: {
@@ -536,24 +575,47 @@ export default {
       });
       this.clearSelection();
     },
+    moveFileToOtherCloud(folderId) {
+      // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada en la otra nube
+      axios.post(`/api/` + this.cloudService + `/moveFile/` + this.fileSelected.id
+          + `/` + this.moveCloudService + `/` + folderId)
+          .then(response => {
+            console.log('Archivo movido exitosamente:', response.data);
+            this.getFiles();
+
+            this.fileSelected = null;
+            this.fileMovePath = [];
+            this.showMoveFileOverlay = false;
+            VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
+          })
+          .catch(error => {
+            console.error(error);
+            VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
+          });
+    },
     // Método para mover un archivo
     moveFile(folderId) {
       if (this.fileSelected) {
-        // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
-        axios.put(`/api/` + this.cloudService + `/moveFile/` + this.fileSelected.id + '?folderId=' + folderId)
-            .then(response => {
-              console.log('Archivo movido exitosamente:', response.data);
-              this.getFiles();
+        // Detectar si hay que mover dentro de la misma nube o entre nubes
+        if (this.moveCloudService !== this.cloudService) {
+          this.moveFileToOtherCloud(folderId);
+        } else {
+          // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada dentro de la misma nube
+          axios.put(`/api/` + this.moveCloudService + `/moveFile/` + this.fileSelected.id + '?folderId=' + folderId)
+              .then(response => {
+                console.log('Archivo movido exitosamente:', response.data);
+                this.getFiles();
 
-              this.fileSelected = null;
-              this.fileMovePath = [];
-              this.showMoveFileOverlay = false;
-              VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
-            })
-            .catch(error => {
-              console.error(error);
-              VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
-            });
+                this.fileSelected = null;
+                this.fileMovePath = [];
+                this.showMoveFileOverlay = false;
+                VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
+              })
+              .catch(error => {
+                console.error(error);
+                VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
+              });
+        }
       }
     },
     //Método para mover todos los archivos seleccionados
@@ -562,24 +624,28 @@ export default {
       const totalRequests = this.files.filter(file => file.selected).length;
       this.files.forEach(file => {
         if (file.selected) {
-          // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
-          axios.put(`/api/` + this.cloudService + `/moveFile/` + file.id + '?folderId=' + targetFolderId)
-              .then(() => {
-                VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
-              })
-              .catch(error => {
-                console.error(error);
-                VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
-              })
-              .finally(() => {
-                completedRequests++;
+          if (this.moveCloudService !== this.cloudService) {
+            this.moveFileToOtherCloud(targetFolderId);
+          } else {
+            // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada dentro de la misma nube
+            axios.put(`/api/` + this.moveCloudService + `/moveFile/` + file.id + '?folderId=' + targetFolderId)
+                .then(() => {
+                  VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
+                })
+                .catch(error => {
+                  console.error(error);
+                  VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
+                })
+                .finally(() => {
+                  completedRequests++;
 
-                if (completedRequests === totalRequests) {
-                  this.getFiles();
-                  this.clearSelection();
-                  this.showMoveSelectedOverlay = false;
-                }
-              });
+                  if (completedRequests === totalRequests) {
+                    this.getFiles();
+                    this.clearSelection();
+                    this.showMoveSelectedOverlay = false;
+                  }
+                });
+          }
         }
       });
     },
@@ -769,7 +835,7 @@ export default {
     },
     // Método para obtener las carpetas dentro de una carpeta
     getFoldersInFolder(folderId) {
-      axios.get('/api/' + this.cloudService + '/folders/' + folderId)
+      axios.get('/api/' + this.moveCloudService + '/folders/' + folderId)
           .then(response => {
             this.folders = response.data;
           })
@@ -806,6 +872,7 @@ export default {
     // Método para abrir el overlay para mover un archivo
     openMoveFileOverlay(file) {
       this.fileSelected = file;
+      this.moveCloudService = this.cloudService;
       this.getFoldersInFolder('root');
       this.fileMovePath.push({id: 'root', name: 'Inicio'});
       this.showMoveFileOverlay = true;
@@ -815,6 +882,7 @@ export default {
     closeMoveFileOverlay() {
       this.folders = [];
       this.fileMovePath = [];
+      this.moveCloudService = this.cloudService;
       this.showMoveFileOverlay = false;
     },
     // Método para mostrar el overlay de opciones de un archivo
@@ -845,6 +913,7 @@ export default {
     },
     // Método para abrir el overlay para mover los archivos seleccionados
     openMoveSelectedOverlay() {
+      this.moveCloudService = this.cloudService;
       this.getFoldersInFolder('root');
       this.fileMovePath.push({id: 'root', name: 'Inicio'});
       this.showMoveSelectedOverlay = true;
@@ -853,7 +922,21 @@ export default {
     closeMoveSelectedOverlay() {
       this.foldersMoveOption = [];
       this.fileMovePath = [];
+      this.moveCloudService = this.cloudService;
       this.showMoveSelectedOverlay = false;
+    },
+    selectMoveCloudService(cloudService) {
+      if (this.isAuthenticated[cloudService]) {
+        this.moveCloudService = cloudService;
+        this.getFoldersInFolder('root');
+      } else {
+        // Mensaje para que inicie sesión en esa nube
+        VsToast.show({
+          title: 'Debe iniciar sesión en dicha nube',
+          variant: 'info',
+          position: 'bottom-center'
+        });
+      }
     },
     ...mapMutations(['setHasFiles']), // Establece a nivel global si hay archivos
   }

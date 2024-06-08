@@ -6,6 +6,7 @@ import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.http.InputStreamContent;
 import com.google.api.services.drive.model.About;
 import com.google.api.services.drive.model.FileList;
+import com.mydrive.backend.services.utils.FileEncryptionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
@@ -23,6 +24,8 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import com.google.api.services.drive.model.File;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -49,6 +52,8 @@ public class GoogleDriveService implements CloudStorageService {
     private Drive drive = null; // Servicio para hacer las peticiones
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleDriveService.class);
+
+    SecretKey secretKey;
 
     @PostConstruct
     public void init() throws Exception {
@@ -306,8 +311,61 @@ public class GoogleDriveService implements CloudStorageService {
                 new ByteArrayInputStream(file.getBytes()))).setFields("id").execute();
     }
 
+    public void uploadFile(InputStream inputStream, String fileName, String folderId) throws Exception {
+        if (inputStream == null) {
+            throw new Exception("Input stream is null");
+        }
+
+        // Preparar el contenido del archivo
+        InputStreamContent fileContent = new InputStreamContent("application/octet-stream", inputStream);
+
+        // Crear el metadata del archivo
+        File fileMetadata = new File();
+        if (folderId != null) {
+            fileMetadata.setName(fileName);
+            fileMetadata.setParents(Collections.singletonList(folderId));
+        }
+
+        // Subir el archivo a Google Drive
+        drive.files().create(fileMetadata, fileContent).setFields("id").execute();
+    }
+
+    public void uploadEncryptFile(MultipartFile file, String folderId) throws Exception {
+        if (file.isEmpty()) {
+            throw new Exception("File is empty");
+        }
+
+        // Generate encryption key and store it for decryption
+        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
+        keyGenerator.init(256);
+        secretKey = keyGenerator.generateKey();
+
+        // Encrypt the file
+        InputStream fileInputStream = file.getInputStream();
+        InputStream encryptedInputStream = FileEncryptionUtil.encryptFile(fileInputStream, secretKey);
+
+        // Create file metadata
+        File fileMetadata = new File();
+        fileMetadata.setName(file.getOriginalFilename());
+        if (folderId != null) fileMetadata.setParents(Collections.singletonList(folderId));
+
+        // Upload encrypted file to Google Drive
+        drive.files().create(fileMetadata, new InputStreamContent(file.getContentType(), encryptedInputStream))
+                .setFields("id")
+                .execute();
+    }
+
     public String getPreviewLink(String fileId) {
         return "https://drive.google.com/file/d/" + fileId + "/view";
+    }
+
+    public FileDTO getFileDetails(String fileId) throws Exception {
+        File file = drive.files().get(fileId)
+                .setFields("id, name, thumbnailLink, mimeType, viewedByMeTime, modifiedByMeTime, createdTime, size")
+                .execute();
+
+        // Convierte el archivo a un DTO
+        return convertToFileDTO(file);
     }
 
     public byte[] downloadFile(String fileId) throws Exception {
@@ -317,6 +375,29 @@ public class GoogleDriveService implements CloudStorageService {
         byte[] fileContent = ((ByteArrayOutputStream) outputStream).toByteArray();
 
         return fileContent;
+    }
+
+    public byte[] downloadDecryptFile(String fileId) throws Exception {
+        logger.info("Iniciando el proceso de descarga y descifrado del archivo con ID: " + fileId);
+
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
+        byte[] encryptedContent = outputStream.toByteArray();
+        logger.info("Archivo descargado, tamaño: " + encryptedContent.length);
+
+        // Decrypt the file using the same SecretKey
+        InputStream encryptedInputStream = new ByteArrayInputStream(encryptedContent);
+        InputStream decryptedInputStream = FileEncryptionUtil.decryptFile(encryptedInputStream, secretKey);
+
+        ByteArrayOutputStream decryptedOutputStream = new ByteArrayOutputStream();
+        byte[] buffer = new byte[1024];
+        int bytesRead;
+        while ((bytesRead = decryptedInputStream.read(buffer)) != -1) {
+            decryptedOutputStream.write(buffer, 0, bytesRead);
+        }
+
+        logger.info("Archivo descifrado, tamaño: " + decryptedOutputStream.size());
+        return decryptedOutputStream.toByteArray();
     }
 
     public void moveFile(String fileId, String targetFolderId) throws Exception {

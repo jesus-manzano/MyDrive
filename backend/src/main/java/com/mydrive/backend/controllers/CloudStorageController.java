@@ -3,6 +3,7 @@ package com.mydrive.backend.controllers;
 import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.services.CloudStorageServiceFactory;
 import com.mydrive.backend.services.CloudStorageService;
+import com.mydrive.backend.services.MultiCloudService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 
+import java.io.InputStream;
 import java.util.List;
 
 @RestController
@@ -22,6 +24,9 @@ public class CloudStorageController {
 
     @Autowired
     private CloudStorageServiceFactory factory;
+
+    @Autowired
+    private MultiCloudService multiCloudService;
 
     CloudStorageService cloudService = null;
 
@@ -33,7 +38,7 @@ public class CloudStorageController {
     }
 
     @GetMapping("/oauth/authorize")
-    public ModelAndView handleAuthorization(@PathVariable("provider") String provider) throws Exception {
+    public ModelAndView handleAuthorization() throws Exception {
         String authorizeUrl = cloudService.redirectToAuthorization();
         return new ModelAndView(new RedirectView(authorizeUrl));
     }
@@ -121,8 +126,10 @@ public class CloudStorageController {
 
     @PostMapping("/uploadFile/{folderId}")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file,
-                                             @PathVariable String folderId) throws Exception {
-        cloudService.uploadFile(file, folderId);
+                                             @PathVariable String folderId,
+                                             @RequestParam(value = "encrypt", defaultValue = "false") boolean encrypt) throws Exception {
+        if (encrypt) cloudService.uploadEncryptFile(file, folderId);
+        else cloudService.uploadFile(file, folderId);
         return ResponseEntity.ok("File has been upload successfully");
     }
 
@@ -170,5 +177,15 @@ public class CloudStorageController {
     public ResponseEntity<String> deleteFile(@PathVariable String fileId) throws Exception {
         cloudService.deleteFile(fileId);
         return ResponseEntity.ok("File has been deleted successfully");
+    }
+
+    @PostMapping("/moveFile/{fileId}/{destinationProvider}/{destinationFolderId}")
+    public ResponseEntity<String> moveFile(@PathVariable("provider") String provider,
+                                           @PathVariable String fileId,
+                                           @PathVariable String destinationProvider,
+                                           @PathVariable String destinationFolderId) throws Exception {
+        logger.info("Mover entre nubes");
+        multiCloudService.moveFileBetweenClouds(provider, fileId, destinationProvider, destinationFolderId);
+        return ResponseEntity.ok("File has been moved successfully");
     }
 }

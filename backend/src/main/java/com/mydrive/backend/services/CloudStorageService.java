@@ -3,6 +3,7 @@ package com.mydrive.backend.services;
 import com.mydrive.backend.dtos.FileDTO;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStream;
 import java.util.List;
 
 public interface CloudStorageService {
@@ -36,9 +37,17 @@ public interface CloudStorageService {
 
     void uploadFile(MultipartFile file, String folderId) throws Exception;
 
+    void uploadFile(InputStream inputStream, String fileName, String folderId) throws Exception;
+
+    void uploadEncryptFile(MultipartFile file, String folderId) throws Exception;
+
     String getPreviewLink(String fileId) throws Exception;
 
+    FileDTO getFileDetails(String fileId) throws Exception;
+
     byte[] downloadFile(String fileId) throws Exception;
+
+    byte[] downloadDecryptFile(String fileId) throws Exception;
 
     void moveFile(String fileId, String targetFolderId) throws Exception;
 

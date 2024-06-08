@@ -330,6 +330,40 @@ public class DropboxService implements CloudStorageService {
         fileInputStream.close();
     }
 
+    public void uploadFile(InputStream inputStream, String fileName, String folderId) throws Exception {
+        if (inputStream == null) {
+            throw new Exception("Input stream is null");
+        }
+
+        // Preparar la ruta del archivo en Dropbox
+        String dropboxFilePath = getPathMetadata(folderId) + "/" + fileName;
+
+        // Subir el archivo a Dropbox
+        client.files().uploadBuilder(dropboxFilePath)
+                .withMode(WriteMode.ADD)
+                .uploadAndFinish(inputStream);
+    }
+
+    public void uploadEncryptFile(MultipartFile file, String folderId) throws Exception {
+        if (file.isEmpty()) {
+            throw new Exception("File is empty");
+        }
+
+        // Preparar el nombre y la ruta del archivo en Dropbox
+        String fileName = file.getOriginalFilename();
+        String dropboxFilePath = getPathMetadata(folderId) + "/" + fileName;
+
+        // Crear un InputStream para el archivo
+        InputStream fileInputStream = new ByteArrayInputStream(file.getBytes());
+
+        // Subir el archivo a Dropbox
+        client.files().uploadBuilder(dropboxFilePath)
+                .withMode(WriteMode.ADD) // Sobrescribir si ya existe un archivo con el mismo nombre
+                .uploadAndFinish(fileInputStream);
+
+        fileInputStream.close();
+    }
+
     public String getPreviewLink(String fileId) throws Exception {
         if (fileId.equals("null"))
             throw new CloudLimitationException("No se puede obtener la preview del archivo indicado");
@@ -339,7 +373,29 @@ public class DropboxService implements CloudStorageService {
         return "https://www.dropbox.com/home" + metadata.getPathDisplay();
     }
 
+    public FileDTO getFileDetails(String fileId) throws Exception {
+        // Obtener los detalles completos del archivo usando el fileId
+        FileMetadata fileMetadata = (FileMetadata) client.files().getMetadata(fileId);
+
+        // Convertir el archivo a un DTO
+        return convertToFileDTO(fileMetadata);
+    }
+
     public byte[] downloadFile(String fileId) throws Exception {
+        // Crear un OutputStream para almacenar el contenido del archivo
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+
+        // Descargar el archivo de Dropbox
+        FileMetadata metadata = client.files().downloadBuilder(fileId)
+                .download(outputStream);
+
+        // Obtener el contenido del archivo como un array de bytes
+        byte[] fileContent = outputStream.toByteArray();
+
+        return fileContent;
+    }
+
+    public byte[] downloadDecryptFile(String fileId) throws Exception {
         // Crear un OutputStream para almacenar el contenido del archivo
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
