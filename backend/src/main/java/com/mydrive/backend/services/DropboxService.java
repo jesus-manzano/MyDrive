@@ -2,12 +2,15 @@ package com.mydrive.backend.services;
 
 import com.dropbox.core.DbxRequestConfig;
 import com.dropbox.core.v2.DbxClientV2;
+import com.dropbox.core.v2.fileproperties.*;
 import com.dropbox.core.v2.files.*;
 import com.dropbox.core.v2.users.FullAccount;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.exceptions.CloudLimitationException;
+import com.mydrive.backend.services.utils.FileEncryptionUtil;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -21,9 +24,7 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -42,6 +43,8 @@ public class DropboxService implements CloudStorageService {
     private String redirectUri;
 
     DbxClientV2 client = null;
+
+    String templateId = null;
 
     private static final Logger logger = LoggerFactory.getLogger(DropboxService.class);
 
@@ -81,6 +84,8 @@ public class DropboxService implements CloudStorageService {
             // Use the access token to authenticate with Dropbox
             DbxRequestConfig config = new DbxRequestConfig("MyDrive");
             client = new DbxClientV2(config, accessToken);
+
+            initializeTemplateId();
         }
     }
 
@@ -344,24 +349,39 @@ public class DropboxService implements CloudStorageService {
                 .uploadAndFinish(inputStream);
     }
 
-    public void uploadEncryptFile(MultipartFile file, String folderId) throws Exception {
-        if (file.isEmpty()) {
-            throw new Exception("File is empty");
+    public void uploadEncryptedFile(MultipartFile file, String password, String folderId) throws Exception {
+        java.io.File tempFile = java.io.File.createTempFile("upload", null);
+        java.io.File encryptedTempFile = java.io.File.createTempFile("encryptedUpload", null);
+
+        try {
+            file.transferTo(tempFile);
+
+            // Encriptar el archivo temporal
+            FileEncryptionUtil.encryptFile(tempFile, encryptedTempFile, password);
+
+            // Preparar la ruta del archivo en Dropbox
+            String fileName = file.getOriginalFilename();
+            String dropboxFilePath = getPathMetadata(folderId) + "/" + fileName;
+
+
+            // Subir el archivo cifrado a Dropbox
+            InputStream inputStream = new FileInputStream(encryptedTempFile);
+            FileMetadata fileMetadata = client.files().uploadBuilder(dropboxFilePath)
+                    .withMode(WriteMode.ADD)
+                    .uploadAndFinish(inputStream);
+
+            // Configurar las propiedades personalizadas del archivo
+            List<PropertyGroup> propertyGroups = new ArrayList<>();
+            List<PropertyField> encryptionProperties = new ArrayList<>();
+            encryptionProperties.add(new PropertyField("encrypted", "true"));
+            propertyGroups.add(new PropertyGroup(templateId, encryptionProperties));
+
+            // Añadir propiedades personalizadas al archivo después de la subida
+            client.fileProperties().propertiesAdd(fileMetadata.getId(), propertyGroups);
+        } finally {
+            tempFile.delete();
+            encryptedTempFile.delete();
         }
-
-        // Preparar el nombre y la ruta del archivo en Dropbox
-        String fileName = file.getOriginalFilename();
-        String dropboxFilePath = getPathMetadata(folderId) + "/" + fileName;
-
-        // Crear un InputStream para el archivo
-        InputStream fileInputStream = new ByteArrayInputStream(file.getBytes());
-
-        // Subir el archivo a Dropbox
-        client.files().uploadBuilder(dropboxFilePath)
-                .withMode(WriteMode.ADD) // Sobrescribir si ya existe un archivo con el mismo nombre
-                .uploadAndFinish(fileInputStream);
-
-        fileInputStream.close();
     }
 
     public String getPreviewLink(String fileId) throws Exception {
@@ -386,7 +406,7 @@ public class DropboxService implements CloudStorageService {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
 
         // Descargar el archivo de Dropbox
-        FileMetadata metadata = client.files().downloadBuilder(fileId)
+        client.files().download(fileId)
                 .download(outputStream);
 
         // Obtener el contenido del archivo como un array de bytes
@@ -395,18 +415,38 @@ public class DropboxService implements CloudStorageService {
         return fileContent;
     }
 
-    public byte[] downloadDecryptFile(String fileId) throws Exception {
-        // Crear un OutputStream para almacenar el contenido del archivo
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+    public byte[] downloadEncryptedFile(String fileId, String password) throws Exception {
+        java.io.File tempFile = java.io.File.createTempFile("download", null);
+        java.io.File decryptedTempFile = java.io.File.createTempFile("decryptedDownload", null);
 
-        // Descargar el archivo de Dropbox
-        FileMetadata metadata = client.files().downloadBuilder(fileId)
-                .download(outputStream);
+        try (OutputStream tempFileStream = new FileOutputStream(tempFile)) {
+            // Descargar el archivo directamente a un OutputStream
+            try (OutputStream outputStream = new ByteArrayOutputStream()) {
+                // Descargar el archivo desde Dropbox
+                client.files().download(fileId).download(outputStream);
 
-        // Obtener el contenido del archivo como un array de bytes
-        byte[] fileContent = outputStream.toByteArray();
+                // Escribir el contenido descargado en el archivo temporal
+                byte[] fileContent = ((ByteArrayOutputStream) outputStream).toByteArray();
+                tempFileStream.write(fileContent);
+            }
 
-        return fileContent;
+            // Descifrar el archivo temporal
+            FileEncryptionUtil.decryptFile(tempFile, decryptedTempFile, password);
+
+            // Leer el archivo descifrado en un byte array
+            try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                 InputStream inputStream = new FileInputStream(decryptedTempFile)) {
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    byteArrayOutputStream.write(buffer, 0, bytesRead);
+                }
+                return byteArrayOutputStream.toByteArray();
+            }
+        } finally {
+            tempFile.delete();
+            decryptedTempFile.delete();
+        }
     }
 
     public void moveFile(String fileId, String targetFolderId) throws Exception {
@@ -447,21 +487,60 @@ public class DropboxService implements CloudStorageService {
         throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
     }
 
+    private void initializeTemplateId() throws Exception {
+        String templateName = "encryption";
+
+        // Verificar si el template ya existe
+        List<String> templateIds = client.fileProperties().templatesListForUser().getTemplateIds();
+        for (String id : templateIds) {
+            String currentTemplateName = client.fileProperties().templatesGetForUser(id).getName();
+            if (currentTemplateName.equals(templateName)) {
+                this.templateId = id;
+                return;
+            }
+        }
+
+        // Crear el PropertyFieldTemplate si no existe
+        PropertyFieldTemplate fieldTemplate = new PropertyFieldTemplate("encrypted", "Encrypted", PropertyType.STRING);
+        AddTemplateResult result = client.fileProperties().templatesAddForUser(templateName,
+                "Template for encryption metadata", Collections.singletonList(fieldTemplate));
+        this.templateId = result.getTemplateId();
+    }
+
+    private boolean isFileEncrypted(FileMetadata fileMetadata) throws Exception {
+        // Obtener las propiedades personalizadas del archivo
+        TemplateFilterBase filter = TemplateFilterBase.filterSome(Collections.singletonList(templateId));
+        FileMetadata fileMetadataGroups = (FileMetadata) client.files().getMetadataBuilder(fileMetadata.getPathLower())
+                .withIncludePropertyGroups(filter)
+                .start();
+
+        for (PropertyGroup group : Objects.requireNonNull(fileMetadataGroups.getPropertyGroups())) {
+            for (PropertyField field : group.getFields()) {
+                if (field.getName().equals("encrypted") && field.getValue().equals("true")) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
     private FileDTO convertToFileDTO(FolderMetadata folderMetadata) {
         FileDTO fileDTO = new FileDTO();
         fileDTO.setId(folderMetadata.getId());
         fileDTO.setName(folderMetadata.getName());
         fileDTO.setLastTimeViewed("");
         fileDTO.setSize(0L);
+        fileDTO.setEncrypted(false);
         return fileDTO;
     }
 
-    private FileDTO convertToFileDTO(FileMetadata fileMetadata) {
+    private FileDTO convertToFileDTO(FileMetadata fileMetadata) throws Exception {
         FileDTO fileDTO = new FileDTO();
         fileDTO.setId(fileMetadata.getId());
         fileDTO.setName(fileMetadata.getName());
         fileDTO.setLastTimeViewed(formatToISO8601(fileMetadata.getServerModified()));
         fileDTO.setSize(fileMetadata.getSize());
+        fileDTO.setEncrypted(isFileEncrypted(fileMetadata));
         return fileDTO;
     }
 
@@ -471,6 +550,7 @@ public class DropboxService implements CloudStorageService {
         fileDTO.setName(deletedMetadata.getName());
         fileDTO.setLastTimeViewed("Archivo eliminado");
         fileDTO.setSize(0L);
+        fileDTO.setEncrypted(false);
         return fileDTO;
     }
 

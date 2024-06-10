@@ -15,7 +15,6 @@ import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
 
-import java.io.InputStream;
 import java.util.List;
 
 @RestController
@@ -126,10 +125,16 @@ public class CloudStorageController {
 
     @PostMapping("/uploadFile/{folderId}")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file,
-                                             @PathVariable String folderId,
-                                             @RequestParam(value = "encrypt", defaultValue = "false") boolean encrypt) throws Exception {
-        if (encrypt) cloudService.uploadEncryptFile(file, folderId);
-        else cloudService.uploadFile(file, folderId);
+                                             @PathVariable String folderId) throws Exception {
+        cloudService.uploadFile(file, folderId);
+        return ResponseEntity.ok("File has been upload successfully");
+    }
+
+    @PostMapping("/uploadEncryptedFile/{folderId}")
+    public ResponseEntity<String> uploadEncryptedFile(@RequestParam("file") MultipartFile file,
+                                                      @RequestParam("password") String password,
+                                                      @PathVariable String folderId) throws Exception {
+        cloudService.uploadEncryptedFile(file, password, folderId);
         return ResponseEntity.ok("File has been upload successfully");
     }
 
@@ -143,6 +148,16 @@ public class CloudStorageController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
         byte[] fileContent = cloudService.downloadFile(fileId);
+
+        return ResponseEntity.ok().headers(headers).body(fileContent);
+    }
+
+    @PostMapping("/downloadEncryptedFile/{fileId}")
+    public ResponseEntity<byte[]> downloadEncryptedFile(@PathVariable String fileId,
+                                                        @RequestParam("password") String password) throws Exception {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
+        byte[] fileContent = cloudService.downloadEncryptedFile(fileId, password);
 
         return ResponseEntity.ok().headers(headers).body(fileContent);
     }

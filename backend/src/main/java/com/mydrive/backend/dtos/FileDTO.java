@@ -7,16 +7,18 @@ public class FileDTO {
     private String thumbnailLink;
     private String lastTimeViewed;
     private Long size;
+    private Boolean encrypted = false; // Por defecto suponemos que el archivo no está cifrado
 
     public FileDTO() {
     }
 
-    public FileDTO(String id, String name, String thumbnailLink, String lastTimeViewed, Long size) {
+    public FileDTO(String id, String name, String thumbnailLink, String lastTimeViewed, Long size, Boolean encrypted) {
         this.id = id;
         this.name = name;
         this.thumbnailLink = thumbnailLink;
         this.lastTimeViewed = lastTimeViewed;
         this.size = size;
+        this.encrypted = encrypted;
     }
 
     public String getId() {
@@ -57,5 +59,13 @@ public class FileDTO {
 
     public void setSize(Long size) {
         this.size = size;
+    }
+
+    public Boolean getEncrypted() {
+        return encrypted;
+    }
+
+    public void setEncrypted(Boolean encrypted) {
+        this.encrypted = encrypted;
     }
 }

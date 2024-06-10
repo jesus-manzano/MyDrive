@@ -24,8 +24,6 @@ import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import com.google.api.services.drive.model.File;
 
-import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
 import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -52,8 +50,6 @@ public class GoogleDriveService implements CloudStorageService {
     private Drive drive = null; // Servicio para hacer las peticiones
 
     private static final Logger logger = LoggerFactory.getLogger(GoogleDriveService.class);
-
-    SecretKey secretKey;
 
     @PostConstruct
     public void init() throws Exception {
@@ -151,7 +147,8 @@ public class GoogleDriveService implements CloudStorageService {
         }
         // Realizamos la consulta para obtener todas las carpetas en esta carpeta
         FileList allFolders = drive.files().list().setQ(query)
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description)")
                 .execute();
 
         List<FileDTO> foldersDTOList = new ArrayList<>();
@@ -177,7 +174,8 @@ public class GoogleDriveService implements CloudStorageService {
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
         FileList allFiles = drive.files().list().setQ(query)
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description)")
                 .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
@@ -209,7 +207,8 @@ public class GoogleDriveService implements CloudStorageService {
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
         FileList allFiles = drive.files().list().setQ(query)
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description)")
                 .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
@@ -232,7 +231,8 @@ public class GoogleDriveService implements CloudStorageService {
         // Realizamos la consulta para obtener todos los archivos
         // que no son ni carpetas ni enlaces a otros archivos
         FileList allFiles = drive.files().list().setQ(query)
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description)")
                 .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
@@ -252,7 +252,8 @@ public class GoogleDriveService implements CloudStorageService {
                 .setQ("trashed=false and name contains '"
                         + folderName
                         + "' and mimeType='application/vnd.google-apps.folder'")
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description)")
                 .execute();
 
         List<FileDTO> foldersDTOList = new ArrayList<>();
@@ -274,7 +275,8 @@ public class GoogleDriveService implements CloudStorageService {
                         + fileName
                         + "' and mimeType != 'application/vnd.google-apps.folder' "
                         + "and mimeType != 'application/vnd.google-apps.shortcut'")
-                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime,modifiedByMeTime,createdTime,size)")
+                .setFields("files(id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description)")
                 .execute();
 
         List<FileDTO> filesDTOList = new ArrayList<>();
@@ -324,35 +326,32 @@ public class GoogleDriveService implements CloudStorageService {
         if (folderId != null) {
             fileMetadata.setName(fileName);
             fileMetadata.setParents(Collections.singletonList(folderId));
+            fileMetadata.setDescription("encrypted=true"); // Metadatos personalizados para indicar que estará cifrado
         }
 
         // Subir el archivo a Google Drive
         drive.files().create(fileMetadata, fileContent).setFields("id").execute();
     }
 
-    public void uploadEncryptFile(MultipartFile file, String folderId) throws Exception {
-        if (file.isEmpty()) {
-            throw new Exception("File is empty");
+    public void uploadEncryptedFile(MultipartFile file, String password, String folderId) throws Exception {
+        java.io.File tempFile = java.io.File.createTempFile("upload", null);
+        java.io.File encryptedTempFile = java.io.File.createTempFile("encryptedUpload", null);
+
+        try {
+            file.transferTo(tempFile);
+
+            // Encriptar el archivo temporal
+            FileEncryptionUtil.encryptFile(tempFile, encryptedTempFile, password);
+
+            // Subir el archivo encriptado a Google Drive
+            try (InputStream inputStream = new FileInputStream(encryptedTempFile)) {
+                String fileName = file.getOriginalFilename();
+                uploadFile(inputStream, fileName, folderId);
+            }
+        } finally {
+            tempFile.delete();
+            encryptedTempFile.delete();
         }
-
-        // Generate encryption key and store it for decryption
-        KeyGenerator keyGenerator = KeyGenerator.getInstance("AES");
-        keyGenerator.init(256);
-        secretKey = keyGenerator.generateKey();
-
-        // Encrypt the file
-        InputStream fileInputStream = file.getInputStream();
-        InputStream encryptedInputStream = FileEncryptionUtil.encryptFile(fileInputStream, secretKey);
-
-        // Create file metadata
-        File fileMetadata = new File();
-        fileMetadata.setName(file.getOriginalFilename());
-        if (folderId != null) fileMetadata.setParents(Collections.singletonList(folderId));
-
-        // Upload encrypted file to Google Drive
-        drive.files().create(fileMetadata, new InputStreamContent(file.getContentType(), encryptedInputStream))
-                .setFields("id")
-                .execute();
     }
 
     public String getPreviewLink(String fileId) {
@@ -361,7 +360,8 @@ public class GoogleDriveService implements CloudStorageService {
 
     public FileDTO getFileDetails(String fileId) throws Exception {
         File file = drive.files().get(fileId)
-                .setFields("id, name, thumbnailLink, mimeType, viewedByMeTime, modifiedByMeTime, createdTime, size")
+                .setFields("id,name,thumbnailLink,mimeType,viewedByMeTime," +
+                        "modifiedByMeTime,createdTime,size,description")
                 .execute();
 
         // Convierte el archivo a un DTO
@@ -377,27 +377,36 @@ public class GoogleDriveService implements CloudStorageService {
         return fileContent;
     }
 
-    public byte[] downloadDecryptFile(String fileId) throws Exception {
-        logger.info("Iniciando el proceso de descarga y descifrado del archivo con ID: " + fileId);
+    public byte[] downloadEncryptedFile(String fileId, String password) throws Exception {
+        java.io.File tempFile = java.io.File.createTempFile("download", null);
+        java.io.File decryptedTempFile = java.io.File.createTempFile("decryptedDownload", null);
 
-        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
-        byte[] encryptedContent = outputStream.toByteArray();
-        logger.info("Archivo descargado, tamaño: " + encryptedContent.length);
+        try (OutputStream tempFileStream = new FileOutputStream(tempFile)) {
+            // Descargar el archivo directamente a un OutputStream
+            OutputStream outputStream = new ByteArrayOutputStream();
+            drive.files().get(fileId).executeMediaAndDownloadTo(outputStream);
 
-        // Decrypt the file using the same SecretKey
-        InputStream encryptedInputStream = new ByteArrayInputStream(encryptedContent);
-        InputStream decryptedInputStream = FileEncryptionUtil.decryptFile(encryptedInputStream, secretKey);
+            // Escribir el contenido descargado en el archivo temporal
+            byte[] fileContent = ((ByteArrayOutputStream) outputStream).toByteArray();
+            tempFileStream.write(fileContent);
 
-        ByteArrayOutputStream decryptedOutputStream = new ByteArrayOutputStream();
-        byte[] buffer = new byte[1024];
-        int bytesRead;
-        while ((bytesRead = decryptedInputStream.read(buffer)) != -1) {
-            decryptedOutputStream.write(buffer, 0, bytesRead);
+            // Descifrar el archivo temporal
+            FileEncryptionUtil.decryptFile(tempFile, decryptedTempFile, password);
+
+            // Leer el archivo descifrado en un byte array
+            try (ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+                 InputStream inputStream = new FileInputStream(decryptedTempFile)) {
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    byteArrayOutputStream.write(buffer, 0, bytesRead);
+                }
+                return byteArrayOutputStream.toByteArray();
+            }
+        } finally {
+            tempFile.delete();
+            decryptedTempFile.delete();
         }
-
-        logger.info("Archivo descifrado, tamaño: " + decryptedOutputStream.size());
-        return decryptedOutputStream.toByteArray();
     }
 
     public void moveFile(String fileId, String targetFolderId) throws Exception {
@@ -460,13 +469,19 @@ public class GoogleDriveService implements CloudStorageService {
         return file.getCreatedTime().toString();
     }
 
-    private FileDTO convertToFileDTO(File file) {
+    private boolean isFileEncrypted(File file) {
+        String description = file.getDescription();
+        return description != null && description.contains("encrypted=true");
+    }
+
+    private FileDTO convertToFileDTO(File file) throws Exception {
         FileDTO fileDTO = new FileDTO(
                 file.getId(),
                 file.getName(),
                 file.getThumbnailLink(),
                 mostRecentLastTimeViewed(file),
-                file.getSize());
+                file.getSize(),
+                isFileEncrypted(file));
         return fileDTO;
     }
 }

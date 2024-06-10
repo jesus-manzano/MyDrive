@@ -170,6 +170,15 @@
             </svg>
           </div>
         </div>
+
+        <div class="d-flex mt-3 align-items-center">
+          <h6 class="me-2">Cifrar:</h6>
+          <input type="password" class="form-control my-1" placeholder="Contraseña" v-model="password">
+        </div>
+        <div class="mb-2">
+          <strong>Info: </strong>
+          Si no establece ninguna contraseña no se cifrará
+        </div>
       </div>
 
       <!-- Circulo de carga -->
@@ -202,6 +211,7 @@ export default {
       showCreateFolderOverlay: false,
       isDraggingUploadFile: false,
       uploading: false,
+      password: ''
     };
   },
   props: {
@@ -307,8 +317,14 @@ export default {
           const formData = new FormData();
           formData.append('file', file);
 
+          let endpoint = '';
+          if (this.password != null && this.password !== '') {
+            formData.append('password', this.password);
+            endpoint = `/api/` + this.cloudService + `/uploadEncryptedFile/${this.currentFolderId}`;
+          } else endpoint = `/api/` + this.cloudService + `/uploadFile/${this.currentFolderId}`;
+
           // Realizar una petición al backend para cada archivo
-          axios.post(`/api/` + this.cloudService + `/uploadFile/${this.currentFolderId}`, formData)
+          axios.post(endpoint, formData)
               .then(() => {
                 // Eliminar el archivo de la lista de archivos seleccionados si se cargó correctamente
                 this.selectedFiles = this.selectedFiles.filter(selectedFile => selectedFile !== file);
@@ -316,6 +332,7 @@ export default {
                 // Cerrar el overlay si ya no hay archivos seleccionados
                 if (this.selectedFiles.length === 0) {
                   this.uploading = false;
+                  this.password = '';
                   this.closeUploadFileOverlay();
 
                   // Guardar el mensaje de éxito en localStorage
@@ -328,6 +345,7 @@ export default {
                 }
               })
               .catch(error => {
+                this.uploading = false;
                 console.error(error);
                 VsToast.show({title: 'Error al subir archivo', variant: 'error', position: 'bottom-center'});
               });

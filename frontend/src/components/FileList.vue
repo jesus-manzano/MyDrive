@@ -158,7 +158,7 @@
               </button>
               <div v-if="$route.name != 'bin'">
                 <button class="btn btn-light my-1" style="width: 8rem;"
-                        @click.prevent.stop="downloadFile(file.id, file.name)">
+                        @click.prevent.stop="handleDownloadFile(file)">
                   Descargar
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                        class="bi bi-download" viewBox="0 0 16 16">
@@ -222,6 +222,22 @@
             </div>
           </div>
         </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Overlay para descargar un archivo cifrado -->
+  <div v-show="showDownloadEncryptedFileOverlay" class="overlay-area">
+    <div class="popup-area">
+      <h2 class="mb-3">Introduce la contraseña del archivo</h2>
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div class="bold me-3">Contraseña:</div>
+        <input type="password" class="form-control" placeholder="Contraseña" v-model="password"
+               @keyup.enter="downloadEncryptedFile">
+      </div>
+      <div class="d-flex justify-content-between align-items-center">
+        <button class="btn btn-danger" @click="closeDownloadEncryptedFileOverlay">Cancelar</button>
+        <button class="btn btn-success" @click="downloadEncryptedFile">Descargar</button>
       </div>
     </div>
   </div>
@@ -417,7 +433,9 @@ export default {
       fileMovePath: [],
       selectionMode: false,
       showMoveSelectedOverlay: false,
-      moveCloudService: ''
+      moveCloudService: '',
+      showDownloadEncryptedFileOverlay: false,
+      password: ''
     };
   },
   props: {
@@ -548,17 +566,41 @@ export default {
           });
     },
     // Método para descargar un archivo
-    downloadFile(fileId, fileName) {
-      axios.get(`/api/` + this.cloudService + `/download/${fileId}`, {
+    downloadFile(file) {
+      axios.get(`/api/` + this.cloudService + `/download/${file.id}`, {
         responseType: 'blob' // Indica que la respuesta será un blob (binario)
       })
           .then(response => {
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', fileName);
+            link.setAttribute('download', file.name);
             document.body.appendChild(link);
             link.click();
+            VsToast.show({title: 'Archivo descargado con éxito', variant: 'success', position: 'bottom-center'});
+          })
+          .catch(error => {
+            console.error(error); // Mensaje del servidor
+            VsToast.show({title: 'Error al descargar el archivo', variant: 'error', position: 'bottom-center'});
+          });
+    },
+    downloadEncryptedFile() {
+      const formData = new FormData();
+      formData.append('password', this.password);
+
+      axios.post(`/api/${this.cloudService}/downloadEncryptedFile/${this.fileSelected.id}`, formData, {
+        responseType: 'blob' // Indica que la respuesta será un blob (binario)
+      })
+          .then(response => {
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', this.fileSelected.name);
+            document.body.appendChild(link);
+            link.click();
+            this.fileSelected = null;
+            this.password = '';
+            this.showDownloadEncryptedFileOverlay = false;
             VsToast.show({title: 'Archivo descargado con éxito', variant: 'success', position: 'bottom-center'});
           })
           .catch(error => {
@@ -570,10 +612,15 @@ export default {
     downloadAllSelected() {
       this.files.forEach(file => {
         if (file.selected) {
-          this.downloadFile(file.id, file.name);
+          this.downloadFile(file);
         }
       });
       this.clearSelection();
+    },
+    handleDownloadFile(file) {
+      if (file.encrypted)
+        this.openDownloadEncryptedFileOverlay(file);
+      else this.downloadFile(file);
     },
     moveFileToOtherCloud(folderId) {
       // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada en la otra nube
@@ -868,6 +915,17 @@ export default {
     closeRenameFileOverlay() {
       this.fileName = '';
       this.showRenameFileOverlay = false;
+    },
+    // Método para abrir el overlay para renombrar un archivo e indicar cuál vamos a modificar
+    openDownloadEncryptedFileOverlay(file) {
+      this.fileSelected = file;
+      this.showDownloadEncryptedFileOverlay = true;
+      this.toggleCardStyle(file);
+    },
+    // Método para cerrar el overlay para renombrar un archivo
+    closeDownloadEncryptedFileOverlay() {
+      this.fileName = '';
+      this.showDownloadEncryptedFileOverlay = false;
     },
     // Método para abrir el overlay para mover un archivo
     openMoveFileOverlay(file) {

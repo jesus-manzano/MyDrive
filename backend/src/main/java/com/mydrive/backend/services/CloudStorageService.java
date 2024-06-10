@@ -39,7 +39,7 @@ public interface CloudStorageService {
 
     void uploadFile(InputStream inputStream, String fileName, String folderId) throws Exception;
 
-    void uploadEncryptFile(MultipartFile file, String folderId) throws Exception;
+    public void uploadEncryptedFile(MultipartFile file, String password, String folderId) throws Exception;
 
     String getPreviewLink(String fileId) throws Exception;
 
@@ -47,7 +47,7 @@ public interface CloudStorageService {
 
     byte[] downloadFile(String fileId) throws Exception;
 
-    byte[] downloadDecryptFile(String fileId) throws Exception;
+    byte[] downloadEncryptedFile(String fileId, String password) throws Exception;
 
     void moveFile(String fileId, String targetFolderId) throws Exception;
 
