@@ -199,6 +199,7 @@
 import axios from 'axios';
 import {mapState, mapMutations} from 'vuex';
 import VsToast from "@vuesimple/vs-toast";
+import CryptoJS from 'crypto-js';
 
 export default {
   data() {
@@ -319,7 +320,10 @@ export default {
 
           let endpoint = '';
           if (this.password != null && this.password !== '') {
-            formData.append('password', this.password);
+            // Crear el hash SHA-256 de la contraseña
+            const hashedPassword = CryptoJS.SHA256(this.password).toString();
+            formData.append('password', hashedPassword);
+
             endpoint = `/api/` + this.cloudService + `/uploadEncryptedFile/${this.currentFolderId}`;
           } else endpoint = `/api/` + this.cloudService + `/uploadFile/${this.currentFolderId}`;
 

@@ -109,7 +109,11 @@
         <a id="file-card" href="" class="card" :class="{ 'transform-card-selected': file.selected }"
            @click.prevent="handleClickFile(file, $event)">
           <img :src="file.thumbnailLink ? file.thumbnailLink : require('@/assets/file.png')"
-               class="card__image bg-light" alt="Imagen" :class="{ 'saturate-img': file.selected }"/>
+               class="card__image bg-light" alt="Imagen" :class="{ 'saturate-img': file.selected,
+               'grayscale': file.encrypted }"/>
+          <img v-if="file.encrypted" :src="require('@/assets/lock_icon.png')"
+               class="card__image lock-icon" alt="Candado" :class="{ 'saturate-img': file.selected }"/>
+
           <div v-show="selectionMode" class="circle-icon ps-2 pb-2 pt-3 pe-3"
                @click.prevent.stop="toggleSelected(file)">
             <svg v-if="file.selected" xmlns="http://www.w3.org/2000/svg" width="24" height="24"
@@ -419,6 +423,7 @@
 import axios from 'axios';
 import {mapMutations, mapState} from 'vuex';
 import VsToast from '@vuesimple/vs-toast';
+import CryptoJS from 'crypto-js';
 
 export default {
   name: "FileList",
@@ -586,7 +591,9 @@ export default {
     },
     downloadEncryptedFile() {
       const formData = new FormData();
-      formData.append('password', this.password);
+      // Crear el hash SHA-256 de la contraseña
+      const hashedPassword = CryptoJS.SHA256(this.password).toString();
+      formData.append('password', hashedPassword);
 
       axios.post(`/api/${this.cloudService}/downloadEncryptedFile/${this.fileSelected.id}`, formData, {
         responseType: 'blob' // Indica que la respuesta será un blob (binario)
@@ -1132,5 +1139,17 @@ export default {
 
 .move-to:hover {
   fill: #4451FE;
+}
+
+.lock-icon {
+  position: absolute;
+  top: 100px;
+  left: 10px;
+  width: 70px;
+  height: 70px;
+}
+
+.grayscale {
+  filter: grayscale(10%) opacity(70%);
 }
 </style>
