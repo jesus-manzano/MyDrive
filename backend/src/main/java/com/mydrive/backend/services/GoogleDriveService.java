@@ -74,6 +74,7 @@ public class GoogleDriveService implements CloudStorageService {
     }
 
     public boolean checkAuthentication() {
+        logger.info("Google-drive: " + (drive != null));
         return drive != null;
     }
 

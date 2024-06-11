@@ -90,6 +90,7 @@ public class DropboxService implements CloudStorageService {
     }
 
     public boolean checkAuthentication() {
+        logger.info("Dropbox: " + (client != null));
         return client != null;
     }
 

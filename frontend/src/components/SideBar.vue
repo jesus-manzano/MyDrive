@@ -425,6 +425,7 @@ export default {
               variant: 'success',
               position: 'bottom-center'
             }));
+            this.setCloudService('');
             window.location.href = '/filemanager/root';
           })
           .catch(error => {

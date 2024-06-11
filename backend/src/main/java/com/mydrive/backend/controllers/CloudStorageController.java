@@ -7,10 +7,12 @@ import com.mydrive.backend.services.MultiCloudService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.ModelAndView;
 import org.springframework.web.servlet.view.RedirectView;
@@ -18,6 +20,7 @@ import org.springframework.web.servlet.view.RedirectView;
 import java.util.List;
 
 @RestController
+@Scope(WebApplicationContext.SCOPE_REQUEST)
 @RequestMapping("/api/{provider}")
 public class CloudStorageController {
 

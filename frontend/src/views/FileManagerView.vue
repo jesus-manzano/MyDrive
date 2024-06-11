@@ -191,20 +191,18 @@ export default {
     ...mapMutations(['setAuthentication']),
     async initialize() {
       await this.checkAllAuthenticatedCloudService();
-      if (this.isNotAuthenticatedInAnyCloud || !this.isAuthenticated[this.cloudService]) {
-        this.setCloudService(''); // Reseteamos nube
-        this.$router.push('/filemanager/root');
-      }
       this.authenticationChecked = true; // Marcar como finalizada la verificación de autenticación
 
-      this.checkSuccessfulLoginAndShowToast(); // Muestra mensaje de éxito error al completar el proceso de login
-      this.checkAndShowToast(); // Muestra el mensaje antes de la recarga de página
+      this.checkSuccessfulLoginAndShowToast(); // Muestra mensaje de éxito o error al completar el proceso de login
+      this.checkSuccessfulLogoutAndShowToast(); // Muestra mensaje de éxito o error al cerrar sesión
     },
     async checkAllAuthenticatedCloudService() {
+      console.log("checkAllAuthenticatedCloudService called");
       const services = ['google-drive', 'dropbox'];
       const promises = services.map(service =>
           axios.get(`/api/${service}/oauth/check`)
               .then(response => {
+                console.log(service + ": " + response.data);
                 this.setAuthentication({service, status: response.data});
               })
               .catch(error => {
@@ -217,9 +215,12 @@ export default {
     checkSuccessfulLoginAndShowToast() {
       if (this.cloudService !== '' && this.isAuthenticated[this.cloudService]) {
         VsToast.show({title: 'Sesión iniciada con éxito', variant: 'success', position: 'bottom-center'});
-      } else VsToast.show({title: 'Error al iniciar sesión', variant: 'error', position: 'bottom-center'});
+      } else {
+        this.setCloudService('');
+        VsToast.show({title: 'Error al iniciar sesión', variant: 'error', position: 'bottom-center'});
+      }
     },
-    checkAndShowToast() {
+    checkSuccessfulLogoutAndShowToast() {
       const toastMessage = JSON.parse(localStorage.getItem('toastMessage'));
       if (toastMessage) {
         VsToast.show(toastMessage);
