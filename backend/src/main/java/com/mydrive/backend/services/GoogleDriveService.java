@@ -470,7 +470,7 @@ public class GoogleDriveService implements CloudStorageService {
         return file.getCreatedTime().toString();
     }
 
-    private boolean isFileEncrypted(File file) {
+    public boolean isFileEncrypted(File file) {
         String description = file.getDescription();
         return description != null && description.contains("encrypted=true");
     }

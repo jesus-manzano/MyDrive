@@ -508,7 +508,7 @@ public class DropboxService implements CloudStorageService {
         this.templateId = result.getTemplateId();
     }
 
-    private boolean isFileEncrypted(FileMetadata fileMetadata) throws Exception {
+    public boolean isFileEncrypted(FileMetadata fileMetadata) throws Exception {
         // Obtener las propiedades personalizadas del archivo
         TemplateFilterBase filter = TemplateFilterBase.filterSome(Collections.singletonList(templateId));
         FileMetadata fileMetadataGroups = (FileMetadata) client.files().getMetadataBuilder(fileMetadata.getPathLower())
