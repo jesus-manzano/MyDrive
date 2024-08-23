@@ -4,6 +4,10 @@ import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.services.CloudStorageServiceFactory;
 import com.mydrive.backend.services.CloudStorageService;
 import com.mydrive.backend.services.MultiCloudService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -119,6 +123,16 @@ public class CloudStorageController {
         return ResponseEntity.ok(files);
     }
 
+    @Operation(
+            summary = "Create a folder",
+            parameters = @Parameter(
+                    name = "provider",
+                    description = "Cloud provider",
+                    required = true,
+                    in = ParameterIn.PATH,
+                    schema = @Schema(allowableValues = {"google-drive", "dropbox"}) // Opciones posibles
+            )
+    )
     @PostMapping("/createFolder/{folderId}")
     public ResponseEntity<String> createFolder(@PathVariable String folderId,
                                                @RequestParam String name) throws Exception {
