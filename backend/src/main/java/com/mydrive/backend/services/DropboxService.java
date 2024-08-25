@@ -485,7 +485,7 @@ public class DropboxService implements CloudStorageService {
 
     public void deleteFile(String fileId) {
         // Lanza excepción para indicar que hay limitación por parte de la api
-        throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
+        throw new CloudLimitationException("No se puede eliminar el archivo debido a limitaciones en la nube");
     }
 
     private void initializeTemplateId() throws Exception {

@@ -4,6 +4,7 @@ import com.dropbox.core.DbxDownloader;
 import com.dropbox.core.v2.DbxClientV2;
 import com.dropbox.core.v2.files.*;
 import com.mydrive.backend.dtos.FileDTO;
+import com.mydrive.backend.exceptions.CloudLimitationException;
 import com.mydrive.backend.services.DropboxService;
 import com.mydrive.backend.services.utils.FileEncryptionUtil;
 import org.junit.jupiter.api.Test;
@@ -208,5 +209,17 @@ public class DropboxServiceTests {
             assertNotNull(result);
             assertArrayEquals(fileContent, result);
         }
+    }
+
+    @Test
+    void testDeleteFileThrowsCloudLimitationException() {
+        // Ejecutar el método y verificar que lanza la excepción esperada
+        CloudLimitationException exception = assertThrows(
+                CloudLimitationException.class,
+                () -> dropboxService.deleteFile("some-file-id")
+        );
+
+        // Verificar el mensaje de la excepción
+        assertEquals("No se puede eliminar el archivo debido a limitaciones en la nube", exception.getMessage());
     }
 }
