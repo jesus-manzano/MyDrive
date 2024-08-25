@@ -11,22 +11,29 @@
     "@popperjs/core": "^2.11.8",
     "@vuesimple/vs-toast": "^3.0.6",
     "axios": "^1.6.8",
+    "axios-mock-adapter": "^2.0.0",
     "bootstrap": "^5.3.3",
     "core-js": "^3.8.3",
     "crypto-js": "^4.2.0",
+    "jsdom": "^24.1.1",
     "popper.js": "^1.16.1",
     "vue": "^3.2.13",
     "vue-router": "^4.3.0",
     "vuex": "^4.1.0"
   },
   "devDependencies": {
-    "@babel/core": "^7.12.16",
+    "@babel/core": "^7.25.2",
     "@babel/eslint-parser": "^7.12.16",
+    "@babel/preset-env": "^7.25.4",
     "@vue/cli-plugin-babel": "~5.0.0",
     "@vue/cli-plugin-eslint": "~5.0.0",
     "@vue/cli-service": "~5.0.0",
+    "@vue/test-utils": "^2.4.6",
+    "babel-jest": "^26.6.3",
     "eslint": "^7.32.0",
-    "eslint-plugin-vue": "^8.0.3"
+    "eslint-plugin-vue": "^8.0.3",
+    "jest": "^26.6.3",
+    "vue-jest": "^5.0.0-alpha.10"
   },
   "eslintConfig": {
     "root": true,
