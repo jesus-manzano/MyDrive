@@ -3,7 +3,7 @@
     <div class="d-flex justify-content-between  align-items-center mt-4 mb-4">
       <div class="display-6">Archivos</div>
       <div class="d-flex justify-content-end flex-column">
-        <button v-if="$route.name === 'bin'" class="btn btn-danger" @click="deleteAllFiles">
+        <button v-if="$route.name === 'bin'" class="btn btn-danger" @click="cleanTrash">
           Vaciar papelera
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
                class="bi bi-trash3 mx-1" viewBox="0 0 16 16">
@@ -633,10 +633,7 @@ export default {
       // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada en la otra nube
       axios.post(`/api/` + this.cloudService + `/moveFile/` + this.fileSelected.id
           + `/` + this.moveCloudService + `/` + folderId)
-          .then(response => {
-            console.log('Archivo movido exitosamente:', response.data);
-            this.getFiles();
-
+          .then(() => {
             this.fileSelected = null;
             this.fileMovePath = [];
             this.showMoveFileOverlay = false;
@@ -656,9 +653,12 @@ export default {
         } else {
           // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada dentro de la misma nube
           axios.put(`/api/` + this.moveCloudService + `/moveFile/` + this.fileSelected.id + '?folderId=' + folderId)
-              .then(response => {
-                console.log('Archivo movido exitosamente:', response.data);
-                this.getFiles();
+              .then(() => {
+                const fileIndex = this.files.findIndex(f => f.id === this.fileSelected.id);
+                if (fileIndex !== -1) {
+                  this.files.splice(fileIndex, 1);
+                }
+                this.setHasFiles(this.files.length > 0);
 
                 this.fileSelected = null;
                 this.fileMovePath = [];
@@ -672,34 +672,69 @@ export default {
         }
       }
     },
-    //Método para mover todos los archivos seleccionados
+    // Método para mover todos los archivos seleccionados
     moveAllSelected(targetFolderId) {
       let completedRequests = 0;
-      const totalRequests = this.files.filter(file => file.selected).length;
-      this.files.forEach(file => {
-        if (file.selected) {
-          if (this.moveCloudService !== this.cloudService) {
-            this.moveFileToOtherCloud(targetFolderId);
-          } else {
-            // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada dentro de la misma nube
-            axios.put(`/api/` + this.moveCloudService + `/moveFile/` + file.id + '?folderId=' + targetFolderId)
-                .then(() => {
-                  VsToast.show({title: 'Archivo movido con éxito', variant: 'success', position: 'bottom-center'});
-                })
-                .catch(error => {
-                  console.error(error);
-                  VsToast.show({title: 'Error al mover el archivo', variant: 'error', position: 'bottom-center'});
-                })
-                .finally(() => {
-                  completedRequests++;
+      const selectedFiles = this.files.filter(file => file.selected);
+      const totalRequests = selectedFiles.length;
 
-                  if (completedRequests === totalRequests) {
-                    this.getFiles();
-                    this.clearSelection();
-                    this.showMoveSelectedOverlay = false;
-                  }
+      selectedFiles.forEach(file => {
+        if (this.moveCloudService !== this.cloudService) {
+          // Mover archivo a otro servicio en la nube
+          axios.post(`/api/` + this.cloudService + `/moveFile/` + file.id
+              + `/` + this.moveCloudService + `/` + targetFolderId)
+              .then(() => {
+                VsToast.show({
+                  title: 'Archivo movido con éxito',
+                  variant: 'success',
+                  position: 'bottom-center'
                 });
-          }
+              })
+              .catch(error => {
+                console.error(error);
+                VsToast.show({
+                  title: 'Error al mover el archivo',
+                  variant: 'error',
+                  position: 'bottom-center'
+                });
+              })
+              .finally(() => {
+                completedRequests++;
+                if (completedRequests === totalRequests) {
+                  this.clearSelection();
+                  this.showMoveSelectedOverlay = false;
+                }
+              });
+        } else {
+          // Mover archivo dentro del mismo servicio en la nube
+          axios.put(`/api/` + this.moveCloudService + `/moveFile/` + file.id + '?folderId=' + targetFolderId)
+              .then(() => {
+                const fileIndex = this.files.findIndex(f => f.id === file.id);
+                if (fileIndex !== -1) {
+                  this.files.splice(fileIndex, 1);
+                }
+                VsToast.show({
+                  title: 'Archivo movido con éxito',
+                  variant: 'success',
+                  position: 'bottom-center'
+                });
+              })
+              .catch(error => {
+                console.error(error);
+                VsToast.show({
+                  title: 'Error al mover el archivo',
+                  variant: 'error',
+                  position: 'bottom-center'
+                });
+              })
+              .finally(() => {
+                completedRequests++;
+                if (completedRequests === totalRequests) {
+                  this.setHasFiles(this.files.length > 0);
+                  this.clearSelection();
+                  this.showMoveSelectedOverlay = false;
+                }
+              });
         }
       });
     },
@@ -740,7 +775,6 @@ export default {
     throwAwayFile(fileId, index) {
       axios.put(`/api/` + this.cloudService + `/throwAway/${fileId}`)
           .then(() => {
-            console.log("Indice: " + index);
             this.files.splice(index, 1);
             this.setHasFiles(this.files.length > 0);
             VsToast.show({
@@ -760,12 +794,41 @@ export default {
     },
     // Método para mover a la papelera todos los archivos seleccionados
     throwAwayAllSelected() {
-      for (let i = this.files.length - 1; i >= 0; i--) {
-        if (this.files[i].selected) {
-          this.throwAwayFile(this.files[i].id, i);
+      let completedRequests = 0;
+      const totalRequests = this.files.filter(file => file.selected).length;
+
+      this.files.forEach((file) => {
+        if (file.selected) {
+          axios.put(`/api/` + this.cloudService + `/throwAway/${file.id}`)
+              .then(() => {
+                const fileIndex = this.files.findIndex(f => f.id === file.id);
+                if (fileIndex !== -1) {
+                  this.files.splice(fileIndex, 1);
+                }
+                VsToast.show({
+                  title: 'Archivo enviado a la papelera con éxito',
+                  variant: 'success',
+                  position: 'bottom-center'
+                });
+              })
+              .catch(error => {
+                console.error(error);
+                VsToast.show({
+                  title: 'Error al enviar el archivo a la papelera',
+                  variant: 'error',
+                  position: 'bottom-center'
+                });
+              })
+              .finally(() => {
+                completedRequests++;
+
+                if (completedRequests === totalRequests) {
+                  this.setHasFiles(this.files.length > 0);
+                  this.clearSelection();
+                }
+              });
         }
-      }
-      this.clearSelection();
+      });
     },
     // Método para restaurar un archivo que estaba en la papelera
     restoreFile(fileId, index) {
@@ -793,12 +856,46 @@ export default {
     },
     // Método para restaurar todos los archivos seleccionados
     restoreAllSelected() {
-      const selectedFiles = this.files.filter(file => file.selected);
-      selectedFiles.forEach(file => {
-        const index = this.files.findIndex(f => f.id === file.id);
-        this.restoreFile(file.id, index);
+      this.files.forEach(file => {
+        if (file.selected) {
+          // Enviar una solicitud al backend para restaurar el archivo actual
+          axios.put(`/api/` + this.cloudService + `/restore/${file.id}`)
+              .then(() => {
+                const fileIndex = this.files.findIndex(f => f.id === file.id);
+                if (fileIndex !== -1) {
+                  this.files.splice(fileIndex, 1);
+                }
+                VsToast.show({
+                  title: 'Archivo restaurado con éxito',
+                  variant: 'success',
+                  position: 'bottom-center'
+                });
+              })
+              .catch(error => {
+                console.error(error);
+                if (error.response && error.response.status === 409) {
+                  // Si el código de estado es 409 (CONFLICT), muestra un mensaje de limitación en la nube
+                  VsToast.show({
+                    title: 'No se puede restaurar el archivo',
+                    message: 'Debido a limitaciones en la nube debe realizarlo de manera manual a través de la página web del servicio.',
+                    variant: 'warning',
+                    position: 'bottom-center'
+                  });
+                } else {
+                  // Si hay otro error, muestra un mensaje genérico de error
+                  VsToast.show({
+                    title: 'Error al restaurar el archivo',
+                    variant: 'error',
+                    position: 'bottom-center'
+                  });
+                }
+              })
+              .finally(() => {
+                this.setHasFiles(this.files.length > 0);
+                this.clearSelection();
+              });
+        }
       });
-      this.clearSelection();
     },
     // Método para eliminar un archivo de forma permanente
     deleteFile(fileId, index) {
@@ -832,21 +929,98 @@ export default {
             }
           });
     },
-    // Método para eliminar todos los archivos seleccionados
     deleteAllSelected() {
-      const selectedFiles = this.files.filter(file => file.selected);
-      selectedFiles.forEach(file => {
-        const index = this.files.findIndex(f => f.id === file.id);
-        this.deleteFile(file.id, index);
-      });
-      this.clearSelection();
-    },
-    // Método para eliminar todos los archivos de forma permanente
-    deleteAllFiles() {
-      const filesCopy = [...this.files];
+      let completedRequests = 0;
+      const totalRequests = this.files.filter(file => file.selected).length;
 
-      filesCopy.forEach(file => {
-        this.deleteFile(file.id, this.files.findIndex(f => f.id === file.id));
+      this.files.forEach((file) => {
+        if (file.selected) {
+          axios.delete(`/api/` + this.cloudService + `/delete/${file.id}`)
+              .then(() => {
+                const fileIndex = this.files.findIndex(f => f.id === file.id);
+                if (fileIndex !== -1) {
+                  this.files.splice(fileIndex, 1);
+                }
+                VsToast.show({
+                  title: 'Archivo eliminado definitivamente con éxito',
+                  variant: 'success',
+                  position: 'bottom-center'
+                });
+              })
+              .catch(error => {
+                console.error(error);
+                if (error.response && error.response.status === 409) {
+                  // Si el código de estado es 409 (CONFLICT), muestra un mensaje de limitación en la nube
+                  VsToast.show({
+                    title: 'No se puede eliminar de forma definitiva',
+                    message: 'Debido a limitaciones en la nube debe realizarlo de manera manual a través de la página web del servicio.',
+                    variant: 'warning',
+                    position: 'bottom-center'
+                  });
+                } else {
+                  // Si hay otro error, muestra un mensaje genérico de error
+                  VsToast.show({
+                    title: 'Error al eliminar archivo de forma definitiva',
+                    variant: 'error',
+                    position: 'bottom-center'
+                  });
+                }
+              })
+              .finally(() => {
+                completedRequests++;
+
+                if (completedRequests === totalRequests) {
+                  this.setHasFiles(this.files.length > 0);
+                  this.clearSelection();
+                }
+              });
+        }
+      });
+    },
+    // Método vaciar la papelera
+    cleanTrash() {
+      let completedRequests = 0;
+      const totalRequests = this.files.length;
+
+      this.files.forEach((file) => {
+        axios.delete(`/api/` + this.cloudService + `/delete/${file.id}`)
+            .then(() => {
+              const fileIndex = this.files.findIndex(f => f.id === file.id);
+              if (fileIndex !== -1) {
+                this.files.splice(fileIndex, 1);
+              }
+              VsToast.show({
+                title: 'Archivo eliminado definitivamente con éxito',
+                variant: 'success',
+                position: 'bottom-center'
+              });
+            })
+            .catch(error => {
+              console.error(error);
+              if (error.response && error.response.status === 409) {
+                // Si el código de estado es 409 (CONFLICT), muestra un mensaje de limitación en la nube
+                VsToast.show({
+                  title: 'No se puede eliminar de forma definitiva',
+                  message: 'Debido a limitaciones en la nube debe realizarlo de manera manual a través de la página web del servicio.',
+                  variant: 'warning',
+                  position: 'bottom-center'
+                });
+              } else {
+                // Si hay otro error, muestra un mensaje genérico de error
+                VsToast.show({
+                  title: 'Error al eliminar archivo de forma definitiva',
+                  variant: 'error',
+                  position: 'bottom-center'
+                });
+              }
+            })
+            .finally(() => {
+              completedRequests++;
+
+              if (completedRequests === totalRequests) {
+                this.setHasFiles(this.files.length > 0);
+              }
+            });
       });
     },
     // Método para ordenar los archivos
@@ -989,6 +1163,7 @@ export default {
       this.fileMovePath = [];
       this.moveCloudService = this.cloudService;
       this.showMoveSelectedOverlay = false;
+      this.clearSelection();
     },
     selectMoveCloudService(cloudService) {
       if (this.isAuthenticated[cloudService]) {

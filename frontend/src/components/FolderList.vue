@@ -440,11 +440,15 @@ export default {
     },
     // Método para mover una carpeta
     moveFolder(folderId) {
-      if (this.folderSelected) {
+      if ((this.folderSelected.id !== folderId) && this.folderSelected) {
         // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
         axios.put(`/api/` + this.cloudService + `/moveFile/` + this.folderSelected.id + '?folderId=' + folderId)
             .then(() => {
-              this.getFolders();
+              const folderIndex = this.folders.findIndex(f => f.id === this.folderSelected.id);
+              if (folderIndex !== -1) {
+                this.folders.splice(folderIndex, 1);
+              }
+              this.setHasFolders(this.folders.length > 0);
 
               this.folderSelected = null;
               this.folderMovePath = [];
@@ -461,12 +465,16 @@ export default {
     //Método para mover todas las carpetas seleccionadas
     moveAllSelected(targetFolderId) {
       let completedRequests = 0;
-      const totalRequests = this.folders.filter(folder => folder.selected).length;
+      const totalRequests = this.folders.filter(folder => ((folder.id !== targetFolderId) && folder.selected)).length;
       this.folders.forEach(folder => {
-        if (folder.selected) {
+        if ((folder.id !== targetFolderId) && folder.selected) {
           // Enviar una solicitud al backend para mover dicho archivo a la carpeta indicada
           axios.put(`/api/` + this.cloudService + `/moveFile/` + folder.id + '?folderId=' + targetFolderId)
               .then(() => {
+                const folderIndex = this.folders.findIndex(f => f.id === folder.id);
+                if (folderIndex !== -1) {
+                  this.folders.splice(folderIndex, 1);
+                }
                 VsToast.show({title: 'Carpeta movida con éxito', variant: 'success', position: 'bottom-center'});
               })
               .catch(error => {
@@ -477,7 +485,7 @@ export default {
                 completedRequests++;
 
                 if (completedRequests === totalRequests) {
-                  this.getFolders();
+                  this.setHasFolders(this.folders.length > 0);
                   this.clearSelection();
                   this.showMoveSelectedOverlay = false;
                 }
@@ -527,7 +535,7 @@ export default {
             });
           });
     },
-    // Método para eliminar todas las carpetas seleccinadas
+    // Método para eliminar todas las carpetas seleccionadas
     deleteAllSelected() {
       let completedRequests = 0;
       const totalRequests = this.folders.filter(folder => folder.selected).length;
@@ -537,6 +545,10 @@ export default {
           // Enviar una solicitud al backend para eliminar la carpeta actual
           axios.delete(`/api/` + this.cloudService + `/delete/${folder.id}`)
               .then(() => {
+                const folderIndex = this.folders.findIndex(f => f.id === folder.id);
+                if (folderIndex !== -1) {
+                  this.folders.splice(folderIndex, 1);
+                }
                 VsToast.show({
                   title: 'Carpeta eliminada definitivamente con éxito',
                   variant: 'success',
@@ -552,9 +564,10 @@ export default {
                 });
               })
               .finally(() => {
+                this.setHasFolders(this.folders.length > 0);
+                this.clearSelection();
                 completedRequests++;
                 if (completedRequests === totalRequests) {
-                  this.getFolders();
                   this.showDeleteSelectedOverlay = false;
                 }
               });
@@ -608,6 +621,7 @@ export default {
     closeRenameFolderOverlay() {
       this.folderName = '';
       this.showRenameFolderOverlay = false;
+      this.clearSelection();
     },
     // Método para abrir el overlay para eliminar una carpeta e indicar la carpeta
     // que vamos a eliminar
@@ -618,6 +632,7 @@ export default {
     // Método para cerrar el overlay para eliminar una carpeta
     closeDeleteFolderOverlay() {
       this.showDeleteFolderOverlay = false;
+      this.clearSelection();
     },
     // Método para abrir el overlay para mover una carpeta
     openMoveFolderOverlay(folder) {
@@ -631,6 +646,7 @@ export default {
       this.foldersMoveOption = [];
       this.folderMovePath = [];
       this.showMoveFolderOverlay = false;
+      this.clearSelection();
     },
     // Método para abrir el overlay para mover las carpetas seleccionadas
     openMoveSelectedOverlay() {
@@ -643,6 +659,7 @@ export default {
       this.foldersMoveOption = [];
       this.folderMovePath = [];
       this.showMoveSelectedOverlay = false;
+      this.clearSelection();
     },
     // Método para cambiar estado seleccionado de una carpeta
     toggleSelected(folder) {
