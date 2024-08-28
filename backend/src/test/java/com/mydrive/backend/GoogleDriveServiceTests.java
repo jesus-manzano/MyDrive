@@ -22,21 +22,60 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Clase de pruebas unitarias para {@link GoogleDriveService}.
+ *
+ * <p>Esta clase contiene pruebas para los métodos de {@link GoogleDriveService}. Utiliza mocks de la API de Google Drive
+ * para simular la interacción con el servicio de almacenamiento en la nube sin necesidad de realizar llamadas reales a la API.</p>
+ *
+ * <p>La clase está anotada con {@link SpringBootTest} para cargar el contexto de la aplicación Spring Boot y permitir
+ * la inyección de dependencias.</p>
+ *
+ * @see GoogleDriveService
+ */
 @SpringBootTest
 public class GoogleDriveServiceTests {
 
+    /**
+     * Mock de la clase {@link Drive} de la API de Google Drive.
+     *
+     * <p>Simula la interacción con el servicio principal de Google Drive.</p>
+     */
     @Mock
     private Drive drive;
 
+    /**
+     * Mock de la clase {@link Drive.Files} de la API de Google Drive.
+     *
+     * <p>Simula el componente que maneja las operaciones relacionadas con archivos en Google Drive.</p>
+     */
     @Mock
     private Drive.Files files;
 
+    /**
+     * Mock de la clase {@link Drive.Files.List} para listar archivos.
+     *
+     * <p>Simula la operación de listar archivos dentro de Google Drive.</p>
+     */
     @Mock
     private Drive.Files.List list;
 
+    /**
+     * Instancia de {@link GoogleDriveService} que se está probando.
+     *
+     * <p>El servicio que se está probando con los mocks proporcionados.</p>
+     */
     @InjectMocks
     private GoogleDriveService googleDriveService;
 
+    /**
+     * Prueba unitaria para el método {@link GoogleDriveService#getFoldersInFolder(String, String)} en caso de éxito.
+     *
+     * <p>Esta prueba verifica que el método puede recuperar correctamente las carpetas desde Google Drive cuando la API responde
+     * exitosamente.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     void testGetFoldersSuccess() throws Exception {
         // Datos simulados
@@ -72,6 +111,14 @@ public class GoogleDriveServiceTests {
         assertEquals("folder2", result.get(1).getName());
     }
 
+    /**
+     * Prueba unitaria para el método {@link GoogleDriveService#getFoldersInFolder(String, String)} en caso de fallo.
+     *
+     * <p>Esta prueba verifica que el método maneja correctamente las excepciones cuando la API de Google Drive responde con
+     * un error.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     void testGetFoldersFailure() throws Exception {
         // Configurar el mock para que lance una excepción
@@ -87,6 +134,14 @@ public class GoogleDriveServiceTests {
         assertEquals("API Error", exception.getMessage());
     }
 
+    /**
+     * Prueba unitaria para el método {@link GoogleDriveService#getRecentFiles(String, String)}.
+     *
+     * <p>Esta prueba verifica que el método puede recuperar correctamente los archivos recientes desde Google Drive basándose
+     * en una fecha máxima.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     public void testGetRecentFiles() throws Exception {
         // Datos simulados
@@ -113,6 +168,13 @@ public class GoogleDriveServiceTests {
         assertEquals("testFile", result.get(0).getName());
     }
 
+    /**
+     * Prueba unitaria para el método {@link GoogleDriveService#searchFiles(String)}.
+     *
+     * <p>Esta prueba verifica que el método puede buscar archivos en Google Drive basándose en un término de búsqueda.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     public void testSearchFiles() throws Exception {
         // Datos simulados
@@ -147,6 +209,13 @@ public class GoogleDriveServiceTests {
         assertEquals("searchFile2", result.get(1).getName());
     }
 
+    /**
+     * Prueba unitaria para el método {@link GoogleDriveService#downloadEncryptedFile(String, String)}.
+     *
+     * <p>Esta prueba verifica que el método puede descargar un archivo cifrado y descifrarlo correctamente.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     public void testDownloadEncryptedFile() throws Exception {
         String fileId = "testFileId";

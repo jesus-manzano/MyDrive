@@ -10,7 +10,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.exceptions.CloudLimitationException;
 import com.mydrive.backend.services.utils.FileEncryptionUtil;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -28,24 +27,59 @@ import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
+/**
+ * Servicio para gestionar operaciones con Dropbox.
+ * Implementa la interfaz {@link CloudStorageService} para ofrecer
+ * funcionalidades de almacenamiento en la nube.
+ *
+ * <p>
+ * Esta clase maneja la autenticación del usuario, gestión de archivos y
+ * carpetas, así como operaciones relacionadas con la API de Dropbox.
+ * Además, está anotada con {@link Service} para indicar que es un componente de servicio
+ * gestionado por Spring, y con {@link Scope} para definir su alcance de sesión.
+ * </p>
+ *
+ * <p>
+ * Algunos métodos lanzan la excepción {@link CloudLimitationException}, que indica una limitación
+ * específica del servicio de Dropbox.
+ * </p>
+ */
 @Service("dropbox")
 @Scope(WebApplicationContext.SCOPE_SESSION)
 @PropertySource("classpath:application-secrets.properties")
 public class DropboxService implements CloudStorageService {
 
+    /**
+     * ID de cliente para la autenticación en la API de Dropbox.
+     */
     @Value("${dropbox.clientId}")
     private String clientId;
 
+    /**
+     * Clave secreta del cliente para la autenticación en la API de Dropbox.
+     */
     @Value("${dropbox.clientSecret}")
     private String clientSecret;
 
+    /**
+     * URI de redirección utilizado en el proceso de autenticación OAuth con Dropbox.
+     */
     @Value("${dropbox.oauth.redirectUri}")
     private String redirectUri;
 
+    /**
+     * Cliente de la API de Dropbox utilizado para realizar operaciones autenticadas.
+     */
     DbxClientV2 client = null;
 
+    /**
+     * ID de plantilla (template) utilizada para algunas operaciones en Dropbox.
+     */
     String templateId = null;
 
+    /**
+     * Logger utilizado para registrar información de depuración y errores.
+     */
     private static final Logger logger = LoggerFactory.getLogger(DropboxService.class);
 
     public String redirectToAuthorization() {
@@ -478,16 +512,47 @@ public class DropboxService implements CloudStorageService {
         client.files().deleteV2(fileId);
     }
 
+    /**
+     * Restaura un archivo en Dropbox.
+     *
+     * <p>Este método no está disponible en el servicio de Dropbox. En lugar de realizar la restauración
+     * del archivo, lanza una excepción {@link CloudLimitationException} para indicar que la operación
+     * no es soportada por la API de Dropbox.</p>
+     *
+     * @param fileId El identificador del archivo a restaurar.
+     * @throws CloudLimitationException Siempre se lanza esta excepción para indicar que la operación
+     *                                    no está disponible en el servicio de Dropbox.
+     */
     public void restoreFile(String fileId) {
-        // Lanza excepción para indicar que hay limitación por parte de la api
         throw new CloudLimitationException("No se puede restaurar el archivo debido a limitaciones en la nube");
     }
 
+    /**
+     * Elimina un archivo en Dropbox.
+     *
+     * <p>Este método no está disponible en el servicio de Dropbox. En lugar de eliminar el archivo,
+     * lanza una excepción {@link CloudLimitationException} para indicar que la operación no es
+     * soportada por la API de Dropbox.</p>
+     *
+     * @param fileId El identificador del archivo a eliminar.
+     * @throws CloudLimitationException Siempre se lanza esta excepción para indicar que la operación
+     *                                    no está disponible en el servicio de Dropbox.
+     */
     public void deleteFile(String fileId) {
-        // Lanza excepción para indicar que hay limitación por parte de la api
         throw new CloudLimitationException("No se puede eliminar el archivo debido a limitaciones en la nube");
     }
 
+    /**
+     * Inicializa el identificador del template de propiedades para cifrado de archivos.
+     *
+     * Este método verifica si ya existe un template de propiedades con el nombre "encryption".
+     * Si el template existe, establece el identificador del template en el campo {@code templateId}.
+     * Si el template no existe, crea un nuevo template de propiedades con el nombre "encryption"
+     * y un campo de propiedad llamado "encrypted" para indicar si un archivo está cifrado.
+     * Finalmente, establece el identificador del nuevo template en el campo {@code templateId}.
+     *
+     * @throws Exception Si ocurre un error al verificar o crear el template de propiedades.
+     */
     private void initializeTemplateId() throws Exception {
         String templateName = "encryption";
 
@@ -508,6 +573,17 @@ public class DropboxService implements CloudStorageService {
         this.templateId = result.getTemplateId();
     }
 
+    /**
+     * Verifica si un archivo en Dropbox está cifrado basado en sus propiedades personalizadas.
+     *
+     * Este método obtiene las propiedades personalizadas del archivo especificado por los metadatos
+     * y revisa si alguna de las propiedades indica que el archivo está cifrado. La propiedad que
+     * se verifica tiene el nombre "encrypted" y el valor "true".
+     *
+     * @param fileMetadata Los metadatos del archivo a verificar.
+     * @return {@code true} si el archivo está cifrado, {@code false} en caso contrario.
+     * @throws Exception Si ocurre un error al obtener las propiedades del archivo.
+     */
     public boolean isFileEncrypted(FileMetadata fileMetadata) throws Exception {
         // Obtener las propiedades personalizadas del archivo
         TemplateFilterBase filter = TemplateFilterBase.filterSome(Collections.singletonList(templateId));
@@ -525,6 +601,12 @@ public class DropboxService implements CloudStorageService {
         return false;
     }
 
+    /**
+     * Convierte un objeto {@link FolderMetadata} de Dropbox en un objeto {@link FileDTO}.
+     *
+     * @param folderMetadata Los metadatos de la carpeta a convertir.
+     * @return Un objeto {@link FileDTO} que representa la carpeta.
+     */
     private FileDTO convertToFileDTO(FolderMetadata folderMetadata) {
         FileDTO fileDTO = new FileDTO();
         fileDTO.setId(folderMetadata.getId());
@@ -535,6 +617,13 @@ public class DropboxService implements CloudStorageService {
         return fileDTO;
     }
 
+    /**
+     * Convierte un objeto {@link FileMetadata} de Dropbox en un objeto {@link FileDTO}.
+     *
+     * @param fileMetadata Los metadatos del archivo a convertir.
+     * @return Un objeto {@link FileDTO} que representa el archivo.
+     * @throws Exception Si ocurre un error al procesar el archivo.
+     */
     private FileDTO convertToFileDTO(FileMetadata fileMetadata) throws Exception {
         FileDTO fileDTO = new FileDTO();
         fileDTO.setId(fileMetadata.getId());
@@ -545,6 +634,12 @@ public class DropboxService implements CloudStorageService {
         return fileDTO;
     }
 
+    /**
+     * Convierte un objeto {@link DeletedMetadata} de Dropbox en un objeto {@link FileDTO}.
+     *
+     * @param deletedMetadata Los metadatos del archivo eliminado a convertir.
+     * @return Un objeto {@link FileDTO} que representa el archivo eliminado.
+     */
     private FileDTO convertToFileDTO(DeletedMetadata deletedMetadata) {
         FileDTO fileDTO = new FileDTO();
         fileDTO.setId("null");
@@ -555,12 +650,25 @@ public class DropboxService implements CloudStorageService {
         return fileDTO;
     }
 
+    /**
+     * Formatea un objeto {@link Date} a una cadena en formato ISO 8601.
+     *
+     * @param date La fecha a formatear.
+     * @return Una cadena que representa la fecha en formato ISO 8601.
+     */
     private String formatToISO8601(Date date) {
         SimpleDateFormat isoFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
         isoFormat.setTimeZone(TimeZone.getTimeZone("UTC"));
         return isoFormat.format(date);
     }
 
+    /**
+     * Obtiene la ruta completa de un archivo o carpeta en Dropbox dado su ID.
+     *
+     * @param fileId El ID del archivo o carpeta.
+     * @return Una cadena que representa la ruta completa.
+     * @throws Exception Si ocurre un error al obtener los metadatos del archivo o carpeta.
+     */
     private String getPathMetadata(String fileId) throws Exception {
         if (fileId.equals("root")) return "";
 
@@ -569,6 +677,14 @@ public class DropboxService implements CloudStorageService {
         return metadata.getPathDisplay();
     }
 
+    /**
+     * Busca y obtiene el ID de una carpeta en Dropbox dado su nombre y el ID de su carpeta padre.
+     *
+     * @param parentFolderId El ID de la carpeta padre.
+     * @param folderName El nombre de la carpeta a buscar.
+     * @return El ID de la carpeta si se encuentra.
+     * @throws Exception Si la carpeta no se encuentra.
+     */
     private String getFolderIdByName(String parentFolderId, String folderName) throws Exception {
         // Obtener la lista de archivos y carpetas en la carpeta padre
         ListFolderResult result = client.files().listFolder(parentFolderId);

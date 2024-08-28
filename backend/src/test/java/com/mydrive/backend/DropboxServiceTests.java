@@ -6,6 +6,7 @@ import com.dropbox.core.v2.files.*;
 import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.exceptions.CloudLimitationException;
 import com.mydrive.backend.services.DropboxService;
+import com.mydrive.backend.services.GoogleDriveService;
 import com.mydrive.backend.services.utils.FileEncryptionUtil;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -24,18 +25,52 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.*;
 
+/**
+ * Clase de pruebas unitarias para {@link DropboxService}.
+ *
+ * <p>Esta clase contiene pruebas para los métodos de {@link DropboxService}. Utiliza mocks de la API de Dropbox
+ * para simular la interacción con el servicio de almacenamiento en la nube sin necesidad de realizar llamadas reales a la API.</p>
+ *
+ * <p>La clase está anotada con {@link SpringBootTest} para cargar el contexto de la aplicación Spring Boot y permitir
+ * la inyección de dependencias.</p>
+ *
+ * @see DropboxService
+ */
 @SpringBootTest
 public class DropboxServiceTests {
 
+    /**
+     * Mock de la clase {@link DbxClientV2} de la API de Dropbox.
+     *
+     * <p>Simula la interacción con el cliente principal de Dropbox.</p>
+     */
     @Mock
     private DbxClientV2 client;
 
+    /**
+     * Mock de la clase {@link DbxUserFilesRequests} que maneja las solicitudes de archivos.
+     *
+     * <p>Simula el componente que maneja las operaciones relacionadas con archivos en Dropbox.</p>
+     */
     @Mock
     private DbxUserFilesRequests files;
 
+    /**
+     * Instancia de {@link DropboxService} que se está probando.
+     *
+     * <p>El servicio que se está probando con los mocks proporcionados.</p>
+     */
     @InjectMocks
     private DropboxService dropboxService;
 
+    /**
+     * Prueba unitaria para el método {@link DropboxService#getFoldersInFolder(String, String)} en caso de éxito.
+     *
+     * <p>Esta prueba verifica que el método puede recuperar correctamente las carpetas desde Dropbox cuando la API
+     * responde exitosamente.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     void testGetFoldersInFolderSuccess() throws Exception {
         // Datos simulados
@@ -66,6 +101,14 @@ public class DropboxServiceTests {
         assertEquals("folder2", result.get(1).getName());
     }
 
+    /**
+     * Prueba unitaria para el método {@link DropboxService#getFoldersInFolder(String, String)} en caso de fallo.
+     *
+     * <p>Esta prueba verifica que el método maneja correctamente las excepciones cuando la API de Dropbox
+     * responde con un error.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     void testGetFoldersInFolderFailure() throws Exception {
         // Configurar el mock para que lance una excepción
@@ -78,6 +121,14 @@ public class DropboxServiceTests {
         assertEquals("API Error", exception.getMessage());
     }
 
+    /**
+     * Prueba unitaria para el método {@link DropboxService#getRecentFiles(String, String)}.
+     *
+     * <p>Esta prueba verifica que el método puede recuperar correctamente los archivos recientes desde Dropbox basándose
+     * en una fecha máxima.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     public void testGetRecentFiles() throws Exception {
         // Configurar mocks para los componentes necesarios
@@ -121,6 +172,13 @@ public class DropboxServiceTests {
         assertEquals("recentFile1", result.get(0).getName());
     }
 
+    /**
+     * Prueba unitaria para el método {@link DropboxService#searchFiles(String)}.
+     *
+     * <p>Esta prueba verifica que el método puede buscar archivos en Dropbox basándose en un término de búsqueda.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     public void testSearchFiles() throws Exception {
         // Configurar mocks para los componentes necesarios
@@ -166,6 +224,13 @@ public class DropboxServiceTests {
         assertEquals("searchFile2", result.get(1).getName());
     }
 
+    /**
+     * Prueba unitaria para el método {@link DropboxService#downloadEncryptedFile(String, String)}.
+     *
+     * <p>Esta prueba verifica que el método puede descargar un archivo cifrado y descifrarlo correctamente.</p>
+     *
+     * @throws Exception Si ocurre algún error durante la prueba.
+     */
     @Test
     public void testDownloadEncryptedFile() throws Exception {
         String fileId = "testFileId";
@@ -211,6 +276,12 @@ public class DropboxServiceTests {
         }
     }
 
+    /**
+     * Prueba unitaria para el método {@link DropboxService#deleteFile(String)}.
+     *
+     * <p>Esta prueba verifica que el método {@link DropboxService#deleteFile(String)} lanza una excepción
+     * {@link CloudLimitationException} en caso de limitaciones en la nube.</p>
+     */
     @Test
     void testDeleteFileThrowsCloudLimitationException() {
         // Ejecutar el método y verificar que lanza la excepción esperada

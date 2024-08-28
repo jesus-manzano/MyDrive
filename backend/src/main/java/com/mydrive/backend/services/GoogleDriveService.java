@@ -31,26 +31,72 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
+/**
+ * Servicio para gestionar operaciones con Google Drive.
+ * Implementa la interfaz {@link CloudStorageService} para ofrecer
+ * funcionalidades de almacenamiento en la nube.
+ *
+ * <p>
+ * Esta clase maneja la autenticación del usuario, gestión de archivos y
+ * carpetas, así como operaciones relacionadas con la API de Google Drive.
+ * Además, está anotada con {@link Service} para indicar que es un componente de servicio
+ * gestionado por Spring, y con {@link Scope} para definir su alcance de sesión.
+ * </p>
+ */
 @Service("google-drive")
 @Scope(WebApplicationContext.SCOPE_SESSION)
 public class GoogleDriveService implements CloudStorageService {
 
+    /**
+     * URL de redirección para la autenticación OAuth de Google.
+     */
     @Value("${google.oauth.redirectUri}")
     private String redirectUri;
 
-    // Credenciales para usar la API de Google Drive
+    /**
+     * Ruta al archivo de credenciales secretas para la API de Google Drive.
+     */
     @Value("${google.secret.key.path}")
     private Resource gdSecretKeys;
 
+    /**
+     * Transporte HTTP utilizado para las comunicaciones con la API de Google.
+     */
     private static final HttpTransport HTTP_TRANSPORT = new NetHttpTransport();
+
+    /**
+     * Factoría de JSON utilizada para la creación y procesamiento de JSON.
+     */
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
+
+    /**
+     * Lista de alcances (permisos) solicitados para la API de Google Drive.
+     */
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE);
 
-    private GoogleAuthorizationCodeFlow flow = null; // Flujo de autorización
-    private Drive drive = null; // Servicio para hacer las peticiones
+    /**
+     * Flujo de autorización de Google, que gestiona el proceso de autenticación.
+     * Inicializado en el método {@link #init()}.
+     */
+    private GoogleAuthorizationCodeFlow flow = null;
 
+    /**
+     * Servicio de Google Drive utilizado para interactuar con la API.
+     * Se inicializa después de la autenticación del usuario.
+     */
+    private Drive drive = null;
+
+    /**
+     * Logger para registrar mensajes de información y errores.
+     */
     private static final Logger logger = LoggerFactory.getLogger(GoogleDriveService.class);
 
+    /**
+     * Inicializa el flujo de autorización de Google Drive.
+     * Este método se ejecuta después de la creación de la instancia de la clase.
+     *
+     * @throws Exception si ocurre un error al cargar las credenciales o iniciar el flujo de autorización.
+     */
     @PostConstruct
     public void init() throws Exception {
         GoogleClientSecrets secrets = GoogleClientSecrets.load(JSON_FACTORY,
@@ -462,6 +508,12 @@ public class GoogleDriveService implements CloudStorageService {
         drive.files().delete(fileId).execute();
     }
 
+    /**
+     * Obtiene la última vez que el archivo fue visto, modificado o creado, en ese orden de preferencia.
+     *
+     * @param file El archivo de Google Drive.
+     * @return Una cadena de texto con la fecha y hora de la última visualización, modificación o creación.
+     */
     private String mostRecentLastTimeViewed(File file) {
         if (file.getViewedByMeTime() != null)
             return file.getViewedByMeTime().toString();
@@ -470,11 +522,24 @@ public class GoogleDriveService implements CloudStorageService {
         return file.getCreatedTime().toString();
     }
 
+    /**
+     * Verifica si un archivo está marcado como cifrado en su descripción.
+     *
+     * @param file El archivo de Google Drive.
+     * @return {@code true} si el archivo está cifrado, {@code false} en caso contrario.
+     */
     public boolean isFileEncrypted(File file) {
         String description = file.getDescription();
         return description != null && description.contains("encrypted=true");
     }
 
+    /**
+     * Convierte un archivo de Google Drive a un objeto de transferencia de datos (DTO).
+     *
+     * @param file El archivo de Google Drive a convertir.
+     * @return Un objeto {@link FileDTO} con los detalles del archivo.
+     * @throws Exception si ocurre un error durante la conversión.
+     */
     private FileDTO convertToFileDTO(File file) throws Exception {
         FileDTO fileDTO = new FileDTO(
                 file.getId(),
@@ -486,4 +551,3 @@ public class GoogleDriveService implements CloudStorageService {
         return fileDTO;
     }
 }
-

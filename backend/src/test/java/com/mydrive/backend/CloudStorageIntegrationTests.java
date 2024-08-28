@@ -24,19 +24,45 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+/**
+ * Pruebas de integración para los endpoints de almacenamiento en la nube.
+ *
+ * <p>Esta clase realiza pruebas de integración para los servicios de Google Drive y Dropbox a través de los endpoints
+ * expuestos en la API REST. Verifica el comportamiento correcto de los controladores y maneja respuestas tanto exitosas
+ * como fallidas.</p>
+ */
 @SpringBootTest
 @AutoConfigureMockMvc
 public class CloudStorageIntegrationTests {
 
+    /**
+     * MockMvc es utilizado para realizar peticiones HTTP y verificar las respuestas.
+     */
     @Autowired
     private MockMvc mockMvc;
 
+    /**
+     * Mock del servicio de Google Drive.
+     *
+     * <p>Utilizado para simular el comportamiento del servicio de Google Drive en las pruebas.</p>
+     */
     @MockBean
     private GoogleDriveService googleDriveService;
 
+    /**
+     * Mock del servicio de Dropbox.
+     *
+     * <p>Utilizado para simular el comportamiento del servicio de Dropbox en las pruebas.</p>
+     */
     @MockBean
     private DropboxService dropboxService;
 
+    /**
+     * Prueba de integración para obtener carpetas desde Google Drive.
+     *
+     * <p>Configura datos simulados para las carpetas en Google Drive y verifica que la respuesta de la API es correcta,
+     * incluyendo el estado HTTP y el contenido JSON.</p>
+     */
     @Test
     void testGetFoldersFromGoogleDrive() throws Exception {
         // Configurar datos simulados
@@ -58,6 +84,12 @@ public class CloudStorageIntegrationTests {
                 .andExpect(jsonPath("$[1].name").value("folder2"));
     }
 
+    /**
+     * Prueba de integración para manejar una excepción al obtener archivos desde Google Drive.
+     *
+     * <p>Simula una excepción generada al intentar obtener archivos desde Google Drive y verifica que la respuesta de la API
+     * sea un error interno del servidor con el mensaje adecuado.</p>
+     */
     @Test
     void testGetFilesFromGoogleDriveThrowsException() throws Exception {
         // Configurar el comportamiento simulado para lanzar una excepción genérica
@@ -70,6 +102,12 @@ public class CloudStorageIntegrationTests {
                 .andExpect(MockMvcResultMatchers.content().string("Error interno del servidor"));
     }
 
+    /**
+     * Prueba de integración para obtener carpetas desde Dropbox.
+     *
+     * <p>Configura datos simulados para las carpetas en Dropbox y verifica que la respuesta de la API es correcta,
+     * incluyendo el estado HTTP y el contenido JSON.</p>
+     */
     @Test
     void testGetFoldersFromDropbox() throws Exception {
         // Configurar datos simulados
@@ -91,6 +129,12 @@ public class CloudStorageIntegrationTests {
                 .andExpect(jsonPath("$[1].name").value("folder2"));
     }
 
+    /**
+     * Prueba de integración para manejar una excepción al intentar eliminar un archivo desde Dropbox.
+     *
+     * <p>Simula una excepción generada al intentar eliminar un archivo desde Dropbox y verifica que la respuesta de la API
+     * sea un conflicto con el mensaje adecuado.</p>
+     */
     @Test
     void testDeleteFileFromDropboxThrowsCloudLimitationException() throws Exception {
         // Configurar el comportamiento simulado para lanzar la excepción
