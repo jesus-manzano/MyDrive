@@ -1,13 +1,10 @@
 package com.mydrive.backend.controllers;
 
+import com.mydrive.backend.annotations.ProviderParam;
 import com.mydrive.backend.dtos.FileDTO;
 import com.mydrive.backend.services.CloudStorageServiceFactory;
 import com.mydrive.backend.services.CloudStorageService;
 import com.mydrive.backend.services.MultiCloudService;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.enums.ParameterIn;
-import io.swagger.v3.oas.annotations.media.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -87,6 +84,7 @@ public class CloudStorageController {
      * @return Un {@link ModelAndView} que redirige al usuario a la URL de autorización.
      * @throws Exception Si ocurre un error durante el proceso de autorización.
      */
+    @ProviderParam
     @GetMapping("/oauth/authorize")
     public ModelAndView handleAuthorization() throws Exception {
         String authorizeUrl = cloudService.redirectToAuthorization();
@@ -103,6 +101,7 @@ public class CloudStorageController {
      * aplicación después de la autenticación.
      * @throws Exception Si ocurre un error durante el proceso de autenticación.
      */
+    @ProviderParam
     @GetMapping("/oauth/callback")
     public ModelAndView handleAuthorizationCallback(@RequestParam("code") String code) throws Exception {
         cloudService.authenticateUser(code);
@@ -116,6 +115,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene un booleano indicando si el usuario está autenticado.
      * @throws Exception Si ocurre un error durante la verificación.
      */
+    @ProviderParam
     @GetMapping("/oauth/check")
     public ResponseEntity<Boolean> checkAuthentication() throws Exception {
         return ResponseEntity.ok(cloudService.checkAuthentication());
@@ -127,6 +127,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene un mensaje indicando que la sesión se ha cerrado correctamente.
      * @throws Exception Si ocurre un error durante el proceso de cierre de sesión.
      */
+    @ProviderParam
     @PostMapping("/logout")
     public ResponseEntity<String> logout() throws Exception {
         cloudService.logout();
@@ -139,6 +140,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene la URL de la foto de perfil.
      * @throws Exception Si ocurre un error al obtener la foto de perfil.
      */
+    @ProviderParam
     @GetMapping("/profilePhoto")
     public ResponseEntity<String> getProfilePhoto() throws Exception {
         String profilePhotoUrl = cloudService.getProfilePhoto();
@@ -151,6 +153,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene el nombre de usuario.
      * @throws Exception Si ocurre un error al obtener el nombre de usuario.
      */
+    @ProviderParam
     @GetMapping("/userName")
     public ResponseEntity<String> getUserName() throws Exception {
         String userName = cloudService.getUserName();
@@ -164,6 +167,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de {@link FileDTO} representando la ruta completa.
      * @throws Exception Si ocurre un error al obtener la ruta de la carpeta.
      */
+    @ProviderParam
     @GetMapping("/path/{folderId}")
     public ResponseEntity<List<FileDTO>> getPathFolder(@PathVariable String folderId) throws Exception {
         List<FileDTO> fullPath = cloudService.getPathFolder(folderId);
@@ -178,6 +182,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de carpetas en la carpeta especificada.
      * @throws Exception Si ocurre un error al obtener las carpetas.
      */
+    @ProviderParam
     @GetMapping("/folders/{folderId}")
     public ResponseEntity<List<FileDTO>> getFoldersInFolder(@PathVariable String folderId,
                                                             @RequestParam(required = false,
@@ -194,6 +199,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de archivos en la carpeta especificada.
      * @throws Exception Si ocurre un error al obtener los archivos.
      */
+    @ProviderParam
     @GetMapping("/files/{folderId}")
     public ResponseEntity<List<FileDTO>> getFilesInFolder(@PathVariable String folderId,
                                                           @RequestParam(required = false,
@@ -210,6 +216,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de archivos recientes.
      * @throws Exception Si ocurre un error al obtener los archivos recientes.
      */
+    @ProviderParam
     @GetMapping("/recentFiles")
     public ResponseEntity<List<FileDTO>> getRecentFiles(@RequestParam String maxDate,
                                                         @RequestParam(required = false,
@@ -225,6 +232,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de archivos en la papelera de reciclaje.
      * @throws Exception Si ocurre un error al obtener los archivos en la papelera.
      */
+    @ProviderParam
     @GetMapping("/files/bin")
     public ResponseEntity<List<FileDTO>> getFilesInBin(@RequestParam(required = false,
             defaultValue = "") String q) throws Exception {
@@ -240,6 +248,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de carpetas que coinciden con el nombre de búsqueda.
      * @throws Exception Si ocurre un error durante la búsqueda.
      */
+    @ProviderParam
     @GetMapping(value = {"/searchFolder/{folderName}"})
     public ResponseEntity<List<FileDTO>> searchFolders(@PathVariable String folderName) throws Exception {
         List<FileDTO> folders = cloudService.searchFolders(folderName);
@@ -253,6 +262,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene una lista de archivos que coinciden con el nombre de búsqueda.
      * @throws Exception Si ocurre un error durante la búsqueda.
      */
+    @ProviderParam
     @GetMapping(value = {"/searchFile/{fileName}"})
     public ResponseEntity<List<FileDTO>> searchFile(@PathVariable String fileName) throws Exception {
         List<FileDTO> files = cloudService.searchFiles(fileName);
@@ -267,16 +277,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que la carpeta ha sido creada exitosamente.
      * @throws Exception Si ocurre un error durante la creación de la carpeta.
      */
-    @Operation(
-            summary = "Create a folder",
-            parameters = @Parameter(
-                    name = "provider",
-                    description = "Cloud provider",
-                    required = true,
-                    in = ParameterIn.PATH,
-                    schema = @Schema(allowableValues = {"google-drive", "dropbox"}) // Opciones posibles
-            )
-    )
+    @ProviderParam
     @PostMapping("/createFolder/{folderId}")
     public ResponseEntity<String> createFolder(@PathVariable String folderId,
                                                @RequestParam String name) throws Exception {
@@ -292,6 +293,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido subido exitosamente.
      * @throws Exception Si ocurre un error durante la subida del archivo.
      */
+    @ProviderParam
     @PostMapping("/uploadFile/{folderId}")
     public ResponseEntity<String> uploadFile(@RequestParam("file") MultipartFile file,
                                              @PathVariable String folderId) throws Exception {
@@ -308,6 +310,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo cifrado ha sido subido exitosamente.
      * @throws Exception Si ocurre un error durante la subida del archivo cifrado.
      */
+    @ProviderParam
     @PostMapping("/uploadEncryptedFile/{folderId}")
     public ResponseEntity<String> uploadEncryptedFile(@RequestParam("file") MultipartFile file,
                                                       @RequestParam("password") String password,
@@ -323,6 +326,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene la URL de vista previa.
      * @throws Exception Si ocurre un error al obtener la URL de vista previa.
      */
+    @ProviderParam
     @GetMapping("/preview-link/{fileId}")
     public ResponseEntity<String> getPreviewUrl(@PathVariable String fileId) throws Exception {
         return ResponseEntity.ok(cloudService.getPreviewLink(fileId));
@@ -335,6 +339,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene el contenido del archivo en formato de byte.
      * @throws Exception Si ocurre un error durante la descarga del archivo.
      */
+    @ProviderParam
     @GetMapping("/download/{fileId}")
     public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) throws Exception {
         HttpHeaders headers = new HttpHeaders();
@@ -352,6 +357,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que contiene el contenido del archivo en formato de byte.
      * @throws Exception Si ocurre un error durante la descarga o descifrado del archivo.
      */
+    @ProviderParam
     @PostMapping("/downloadEncryptedFile/{fileId}")
     public ResponseEntity<byte[]> downloadEncryptedFile(@PathVariable String fileId,
                                                         @RequestParam("password") String password) throws Exception {
@@ -370,6 +376,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido movido exitosamente.
      * @throws Exception Si ocurre un error durante el movimiento del archivo.
      */
+    @ProviderParam
     @PutMapping("/moveFile/{fileId}")
     public ResponseEntity<String> moveFile(@PathVariable String fileId,
                                            @RequestParam String folderId) throws Exception {
@@ -385,6 +392,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido renombrado exitosamente.
      * @throws Exception Si ocurre un error durante el renombrado del archivo.
      */
+    @ProviderParam
     @PutMapping("/renameFile/{fileId}")
     public ResponseEntity<String> renameFile(@PathVariable String fileId,
                                              @RequestParam String name) throws Exception {
@@ -399,6 +407,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido movido a la papelera exitosamente.
      * @throws Exception Si ocurre un error durante el proceso.
      */
+    @ProviderParam
     @PutMapping("/throwAway/{fileId}")
     public ResponseEntity<String> throwAwayFile(@PathVariable String fileId) throws Exception {
         cloudService.throwAwayFile(fileId);
@@ -412,6 +421,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido restaurado exitosamente.
      * @throws Exception Si ocurre un error durante el proceso.
      */
+    @ProviderParam
     @PutMapping("/restore/{fileId}")
     public ResponseEntity<String> restoreFile(@PathVariable String fileId) throws Exception {
         cloudService.restoreFile(fileId);
@@ -425,6 +435,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido eliminado exitosamente.
      * @throws Exception Si ocurre un error durante el proceso de eliminación.
      */
+    @ProviderParam
     @DeleteMapping("/delete/{fileId}")
     public ResponseEntity<String> deleteFile(@PathVariable String fileId) throws Exception {
         cloudService.deleteFile(fileId);
@@ -441,6 +452,7 @@ public class CloudStorageController {
      * @return Un {@link ResponseEntity} que confirma que el archivo ha sido movido exitosamente.
      * @throws Exception Si ocurre un error durante el proceso de mover el archivo entre nubes.
      */
+    @ProviderParam
     @PostMapping("/moveFile/{fileId}/{destinationProvider}/{destinationFolderId}")
     public ResponseEntity<String> moveFile(@PathVariable("provider") String provider,
                                            @PathVariable String fileId,

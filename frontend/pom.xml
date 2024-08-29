@@ -46,7 +46,7 @@
                             <arguments>install</arguments>
                         </configuration>
                     </execution>
-                    <!-- Build and minify static files -->
+                    <!-- Build and minify public files -->
                     <execution>
                         <id>npm run build</id>
                         <goals>
