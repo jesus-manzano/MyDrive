@@ -97,10 +97,12 @@
     <div v-if="isAuthenticated[cloudService]" class="dropdown">
       <a href="#" class="d-flex align-items-center link-dark text-decoration-none dropdown-toggle"
          id="dropdownUser2" data-bs-toggle="dropdown" aria-expanded="false">
-        <img v-if="profilePhotoUrl" :src="profilePhotoUrl" alt="Profile Photo" width="32" height="32"
-             class="rounded-circle me-2">
-        <img v-else src="@/assets/default-avatar-icon.jpg" alt="Profile Photo" width="32" height="32"
-             class="rounded-circle me-2">
+        <img :src="profilePhotoUrl || require('@/assets/default-avatar-icon.jpg')"
+             alt="Profile Photo"
+             width="40"
+             height="40"
+             class="rounded-circle me-2"
+             @error="handleProfilePhotoError($event)">
         <strong>{{ userName }}</strong>
       </a>
       <ul class="dropdown-menu text-small shadow" aria-labelledby="dropdownUser2" style="">
@@ -435,6 +437,10 @@ export default {
               query: {code: 500, message: 'Error al cerrar sesión'}
             });
           });
+    },
+    handleProfilePhotoError(event) {
+      // Si la imagen de perfil falla, se asigna la imagen por defecto
+      event.target.src = require('@/assets/default-avatar-icon.jpg');
     }
   }
 };

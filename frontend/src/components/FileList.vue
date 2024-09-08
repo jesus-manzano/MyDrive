@@ -108,11 +108,21 @@
       <div class="mx-4 mb-5 rounded-4" style="width: 11rem;" v-for="(file, index) in files" :key="file.id">
         <a id="file-card" href="" class="card" :class="{ 'transform-card-selected': file.selected }"
            @click.prevent="handleClickFile(file, $event)">
+          <!-- Imagen de archivo -->
           <img :src="file.thumbnailLink ? file.thumbnailLink : require('@/assets/file.png')"
-               class="card__image bg-light" alt="Imagen" :class="{ 'saturate-img': file.selected,
-               'grayscale': file.encrypted }"/>
-          <img v-if="file.encrypted" :src="require('@/assets/lock_icon.png')"
-               class="card__image lock-icon" alt="Candado" :class="{ 'saturate-img': file.selected }"/>
+               class="card__image bg-light"
+               alt="Imagen"
+               :class="{ 'saturate-img': file.selected, 'grayscale': file.encrypted }"
+               @error="handleImageError($event)"
+          />
+
+          <!-- Icono de candado que se muestra encima de la imagen si está cifrado -->
+          <img v-if="file.encrypted"
+               :src="require('@/assets/lock_icon.png')"
+               class="lock-icon"
+               alt="Candado"
+               :class="{ 'saturate-img': file.selected }"
+          />
 
           <div v-show="selectionMode" class="circle-icon ps-2 pb-2 pt-3 pe-3"
                @click.prevent.stop="toggleSelected(file)">
@@ -1177,6 +1187,10 @@ export default {
           position: 'bottom-center'
         });
       }
+    },
+    handleImageError(event) {
+      // Asigna la imagen predefinida cuando ocurre un error en la carga de la imagen
+      event.target.src = require('@/assets/file.png');
     },
     ...mapMutations(['setHasFiles']), // Establece a nivel global si hay archivos
   }
